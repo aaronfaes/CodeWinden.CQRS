@@ -1,2 +1,27 @@
-# codewinden
-A collection of minimal, focused .NET NuGet packages designed to accelerate development by providing small, opinionated frameworks for common patterns like CQRS, incorporating easy-to-use validation and established best practices.
+# CodeWinden.CQRS
+
+An opinionated framework for CQRS, incorporating established best practices.
+
+## Packages
+
+### CodeWinden.CQRS
+
+A minimal CQRS framework that separates commands (writes) from queries (reads) to build maintainable applications with clear separation of concerns.
+
+**Key Features:**
+- Zero boilerplate with automatic handler discovery
+- Type-safe command and query execution
+- Built on Microsoft.Extensions.DependencyInjection
+- Configurable handler lifetimes
+
+[**View Documentation →**](src/CodeWinden.CQRS/README.md)
+
+```bash
+dotnet add package CodeWinden.CQRS
+```
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE.md) for details

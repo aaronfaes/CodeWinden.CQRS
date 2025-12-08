@@ -13,7 +13,8 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection to register the handlers to.</param>
     /// <param name="optionsAction">An optional action to configure the CQRS options.</param>
-    public static void AddCQRS(this IServiceCollection services, Action<CQRSOptionsBuilder>? optionsAction = null)
+    /// <returns>The updated service collection.</returns>
+    public static IServiceCollection AddCQRS(this IServiceCollection services, Action<CQRSOptionsBuilder>? optionsAction = null)
     {
         // Create options builder
         var optionsBuilder = new CQRSOptionsBuilder();
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
         // Build options
         var options = optionsBuilder.Build();
 
-        AddCQRS(services, options);
+        return AddCQRS(services, options);
     }
 
     /// <summary>
@@ -32,7 +33,8 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection to register the handlers to.</param>
     /// <param name="options">The CQRS options to use for configuring CQRS.</param>
-    public static void AddCQRS(this IServiceCollection services, CQRSOptions options)
+    /// <returns>The updated service collection.</returns>
+    public static IServiceCollection AddCQRS(this IServiceCollection services, CQRSOptions options)
     {
         // Locate all handlers
         var handlers = HandlerLocator.LocateHandlers(options);
@@ -45,5 +47,7 @@ public static class ServiceCollectionExtensions
 
         // Register the CQRS service
         services.TryAddSingleton<ICQRSService, CQRSService>();
+
+        return services;
     }
 }

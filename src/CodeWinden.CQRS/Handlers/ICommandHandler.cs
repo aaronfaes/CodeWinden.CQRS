@@ -6,7 +6,7 @@ namespace CodeWinden.CQRS;
 public interface ICommand { }
 
 /// <summary>
-/// Marker interface for queries to strongly type the expected result.
+/// Marker interface for commands to strongly type the expected result.
 /// </summary>
 /// <typeparam name="TResult"></typeparam>
 public interface ICommand<TResult> : ICommand { }

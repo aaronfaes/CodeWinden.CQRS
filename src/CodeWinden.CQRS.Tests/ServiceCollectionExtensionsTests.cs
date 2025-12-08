@@ -12,12 +12,15 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
 
         // Act
-        services.AddCQRS();
+        var result = services.AddCQRS();
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ICQRSService));
         Assert.NotNull(descriptor);
         Assert.Equal(typeof(CQRSService), descriptor.ImplementationType);
+
+        Assert.IsType<ServiceCollection>(result);
+        Assert.Same(services, result);
     }
 
     [Fact]
@@ -42,13 +45,16 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
 
         // Act
-        services.AddCQRS(options => options.AddHandlersFromAssemblyContaining<TestCommandHandler>());
+        var result = services.AddCQRS(options => options.AddHandlersFromAssemblyContaining<TestCommandHandler>());
 
         // Assert
         Assert.Contains(services, d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
         Assert.Contains(services, d => d.ServiceType == typeof(ICommandHandler<TestCommandWithResult, int>));
         Assert.Contains(services, d => d.ServiceType == typeof(IQueryHandler<TestQuery, string>));
         Assert.Contains(services, d => d.ServiceType == typeof(IQueryHandler<AnotherTestQuery, int>));
+
+        Assert.IsType<ServiceCollection>(result);
+        Assert.Same(services, result);
     }
 
     [Fact]

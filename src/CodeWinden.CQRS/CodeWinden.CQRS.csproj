@@ -11,7 +11,7 @@
     <Authors>Aäron Faes</Authors>
     <Company>CodeWinden</Company>
     <Product>CodeWinden.CQRS</Product>
-    <PackageTags>json</PackageTags>
+    <PackageTags>CQRS</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://github.com/aaronfaes/CodeWinden.CQRS</PackageProjectUrl>

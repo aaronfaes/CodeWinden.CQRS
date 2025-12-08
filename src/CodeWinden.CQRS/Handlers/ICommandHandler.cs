@@ -18,6 +18,11 @@ public interface ICommand<TResult> : ICommand { }
 public interface ICommandHandler<TCommand> : ICQRSHandler
     where TCommand : ICommand
 {
+    /// <summary>
+    /// Handles the given command.
+    /// </summary>
+    /// <param name="command">The command to handle.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     Task Handle(TCommand command, CancellationToken cancellationToken);
 }
 
@@ -29,5 +34,11 @@ public interface ICommandHandler<TCommand> : ICQRSHandler
 public interface ICommandHandler<TCommand, TResult> : ICQRSHandler
     where TCommand : ICommand<TResult>
 {
+    /// <summary>
+    /// Handles the given command.
+    /// </summary>
+    /// <param name="command">The command to handle.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result of the command.</returns>
     Task<TResult> Handle(TCommand command, CancellationToken cancellationToken);
 }

@@ -81,7 +81,7 @@ public class CQRSOptionsBuilder
         return AddHandlersFromAssemblyContaining(typeof(TAssembly).Assembly);
     }
 
-    // <summary>
+    /// <summary>
     /// Set the assembly to scan for handlers in that assembly.
     /// </summary>
     /// <param name="assembly">Assembly to scan for handlers.</param>

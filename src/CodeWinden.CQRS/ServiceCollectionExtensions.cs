@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    // <summary>
+    /// <summary>
     /// Registers CQRS handlers to the service collection based on the provided options.
     /// </summary>
     /// <param name="services">The service collection to register the handlers to.</param>

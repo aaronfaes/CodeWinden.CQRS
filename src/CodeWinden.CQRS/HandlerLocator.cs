@@ -54,6 +54,6 @@ public static class HandlerLocator
             );
 
         // Combine types from assembly and explicitly added types
-        return [.. options.HandlerTypes, .. assemblyTypes];
+        return options.HandlerTypes.Concat(assemblyTypes);
     }
 }

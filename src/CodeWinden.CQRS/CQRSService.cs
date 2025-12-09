@@ -121,7 +121,8 @@ public class CQRSService : ICQRSService
     /// <param name="query">The query to execute.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result of the query.</returns>
-    public Task<TResult> ExecuteQuery<TQuery, TResult>(TQuery query, CancellationToken cancellationToken = default) where TQuery : IQuery<TResult>
+    public Task<TResult> ExecuteQuery<TQuery, TResult>(TQuery query, CancellationToken cancellationToken = default)
+        where TQuery : IQuery<TResult>
     {
         // Resolve the appropriate query handler
         var handler = _serviceProvider.GetRequiredService<IQueryHandler<TQuery, TResult>>();

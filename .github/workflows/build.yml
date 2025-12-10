@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: ['windows-latest', 'ubuntu-latest']
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: |
+          10.0.x
+          9.0.x
+          8.0.x
+    - name: Install dependencies
+      run: dotnet restore "src/CodeWinden.CQRS.sln"
+    - name: Build
+      run: dotnet build "src/CodeWinden.CQRS.sln" --no-restore
+    - name: Test with the dotnet CLI
+      run: dotnet test "src/CodeWinden.CQRS.sln" --no-build

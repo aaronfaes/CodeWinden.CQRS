@@ -5,6 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS.Tests;
 
+/// <summary>
+/// Unit tests for the CQRSOptionsBuilder class.
+/// </summary>
 public class CQRSOptionsBuilderTests
 {
     [Fact]

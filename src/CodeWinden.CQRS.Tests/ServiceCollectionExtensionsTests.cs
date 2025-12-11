@@ -3,6 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS.Tests;
 
+/// <summary>
+/// Unit tests for the ServiceCollectionExtensions class.
+/// </summary>
 public class ServiceCollectionExtensionsTests
 {
     [Fact]
@@ -367,9 +370,9 @@ public class ServiceCollectionExtensionsTests
         var handlerIndex = services.ToList().FindIndex(d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
         var serviceIndex = services.ToList().FindIndex(d => d.ServiceType == typeof(ICQRSService));
 
-        Assert.True(handlerIndex >= 0);
-        Assert.True(serviceIndex >= 0);
-        Assert.True(handlerIndex < serviceIndex);
+        Assert.NotEqual(-1, handlerIndex);
+        Assert.NotEqual(-1, serviceIndex);
+        Assert.True(handlerIndex < serviceIndex, "Handler should be registered before CQRSService");
     }
 
     [Fact]

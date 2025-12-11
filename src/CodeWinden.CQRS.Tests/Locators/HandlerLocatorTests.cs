@@ -4,6 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS.Tests.Locators;
 
+/// <summary>
+/// Unit tests for the HandlerLocator class.
+/// </summary>
 public class HandlerLocatorTests
 {
     [Fact]

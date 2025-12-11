@@ -1,5 +1,6 @@
 ﻿namespace CodeWinden.CQRS;
 
+using CodeWinden.CQRS.Locators;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

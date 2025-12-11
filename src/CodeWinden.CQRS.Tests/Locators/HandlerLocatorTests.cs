@@ -1,7 +1,8 @@
+using CodeWinden.CQRS.Locators;
 using CodeWinden.CQRS.Tests.Handlers;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CodeWinden.CQRS.Tests;
+namespace CodeWinden.CQRS.Tests.Locators;
 
 public class HandlerLocatorTests
 {

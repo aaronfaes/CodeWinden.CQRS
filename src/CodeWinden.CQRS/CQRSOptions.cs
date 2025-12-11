@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reflection;
+using CodeWinden.CQRS.Decorators;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS;
@@ -10,17 +11,21 @@ namespace CodeWinden.CQRS;
 public record CQRSOptions
 {
     /// <summary>
-    /// Assembly to scan for handlers.
+    /// Assembly to scan for handlers. (Note: the lifetime will be set to the <see cref="HandlerFromAssemblyLifetime"/>.)
     /// </summary>
     public Assembly? AssemblyWithHandlers { get; set; }
     /// <summary>
     /// Collection of specific handler types to register.
     /// </summary>
-    public ICollection<Type> HandlerTypes { get; } = new Collection<Type>();
+    public ICollection<CQRSDIConfiguration> Handlers { get; } = new Collection<CQRSDIConfiguration>();
     /// <summary>
-    /// Lifetime of the registered handlers.
+    /// Collection of decorators to apply to handlers.
     /// </summary>
-    public ServiceLifetime HandlerLifetime { get; set; } = ServiceLifetime.Scoped;
+    public ICollection<CQRSDIConfiguration> Decorators { get; } = new Collection<CQRSDIConfiguration>();
+    /// <summary>
+    /// Default lifetime for handlers if not specified otherwise.
+    /// </summary>
+    public ServiceLifetime HandlerFromAssemblyLifetime { get; set; } = ServiceLifetime.Scoped;
 }
 
 /// <summary>
@@ -37,10 +42,11 @@ public class CQRSOptionsBuilder
     /// Adds a handler type to be registered.
     /// </summary>
     /// <typeparam name="THandler">Type of the handler to add.</typeparam>
+    /// <param name="lifetime">Service lifetime for the handler.</param>
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
-    public CQRSOptionsBuilder AddHandler<THandler>()
+    public CQRSOptionsBuilder AddHandler<THandler>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
-        _options.HandlerTypes.Add(typeof(THandler));
+        _options.Handlers.Add(new CQRSDIConfiguration { Type = typeof(THandler), Lifetime = lifetime });
         return this;
     }
 
@@ -48,25 +54,11 @@ public class CQRSOptionsBuilder
     /// Adds a handler type to be registered.
     /// </summary>
     /// <param name="handlerType">Type of the handler to add.</param>
+    /// <param name="lifetime">Service lifetime for the handler.</param>
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
-    public CQRSOptionsBuilder AddHandler(Type handlerType)
+    public CQRSOptionsBuilder AddHandler(Type handlerType, ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
-        _options.HandlerTypes.Add(handlerType);
-
-        return this;
-    }
-
-    /// <summary>
-    /// Adds multiple handler types to be registered.
-    /// </summary>
-    /// <param name="handlerTypes">Span of handler types to add.</param>
-    /// <returns>The current CQRSOptionsBuilder instance.</returns>
-    public CQRSOptionsBuilder AddHandler(ReadOnlySpan<Type> handlerTypes)
-    {
-        foreach (var handlerType in handlerTypes)
-        {
-            _options.HandlerTypes.Add(handlerType);
-        }
+        _options.Handlers.Add(new CQRSDIConfiguration { Type = handlerType, Lifetime = lifetime });
 
         return this;
     }
@@ -75,32 +67,49 @@ public class CQRSOptionsBuilder
     /// Set the assembly to scan for handlers by specifying a type contained in that assembly.
     /// </summary>
     /// <typeparam name="TAssembly">Type contained in the assembly to scan for handlers.</typeparam>
+    /// <param name="lifetime">Service lifetime for the handlers.</param>
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
-    public CQRSOptionsBuilder AddHandlersFromAssemblyContaining<TAssembly>()
+    public CQRSOptionsBuilder AddHandlersFromAssemblyContaining<TAssembly>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
-        return AddHandlersFromAssemblyContaining(typeof(TAssembly).Assembly);
+        return AddHandlersFromAssemblyContaining(typeof(TAssembly).Assembly, lifetime);
     }
 
     /// <summary>
     /// Set the assembly to scan for handlers in that assembly.
     /// </summary>
     /// <param name="assembly">Assembly to scan for handlers.</param>
+    /// <param name="lifetime">Service lifetime for the handlers.</param>
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
-    public CQRSOptionsBuilder AddHandlersFromAssemblyContaining(Assembly assembly)
+    public CQRSOptionsBuilder AddHandlersFromAssemblyContaining(Assembly assembly, ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         _options.AssemblyWithHandlers = assembly;
+        _options.HandlerFromAssemblyLifetime = lifetime;
 
         return this;
     }
 
     /// <summary>
-    /// Sets the lifetime for registered handlers.
+    /// Adds a decorator type to be applied to handlers.
     /// </summary>
-    /// <param name="lifetime">The desired service lifetime.</param>
+    /// <typeparam name="TDecorator">Type of the decorator to add.</typeparam>
+    /// <param name="lifetime">Service lifetime for the decorator.</param>
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
-    public CQRSOptionsBuilder WithHandlerLifetime(ServiceLifetime lifetime)
+    public CQRSOptionsBuilder AddDecorator<TDecorator>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        where TDecorator : ICQRSHandlerDecorator
     {
-        _options.HandlerLifetime = lifetime;
+        _options.Decorators.Add(new CQRSDIConfiguration { Type = typeof(TDecorator), Lifetime = lifetime });
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a decorator type to be applied to handlers.
+    /// </summary>
+    /// <param name="Type">Type of the decorator to add.</param>
+    /// <param name="lifetime">Service lifetime for the decorator.</param>
+    /// <returns>The current CQRSOptionsBuilder instance.</returns>
+    public CQRSOptionsBuilder AddDecorator(Type Type, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    {
+        _options.Decorators.Add(new CQRSDIConfiguration { Type = Type, Lifetime = lifetime });
         return this;
     }
 

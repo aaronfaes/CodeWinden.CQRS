@@ -19,10 +19,12 @@ public class HandlerLocatorTests
 
         // Assert
         Assert.NotEmpty(descriptors);
-        Assert.Equal(8, descriptors.Count);
+        Assert.Equal(8, descriptors.Count); // Exclude all decorators
         Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<TestCommandWithResult, int>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<AnotherTestCommand>));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<MultiTestCommand>));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<MultiAnotherTestCommand>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(IQueryHandler<TestQuery, string>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(IQueryHandler<AnotherTestQuery, int>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(IQueryHandler<bool>));
@@ -151,8 +153,7 @@ public class HandlerLocatorTests
     {
         // Arrange
         var options = new CQRSOptionsBuilder()
-            .AddHandler<TestCommandHandler>()
-            .WithHandlerLifetime(ServiceLifetime.Singleton)
+            .AddHandler<TestCommandHandler>(ServiceLifetime.Singleton)
             .Build();
 
         // Act
@@ -167,14 +168,67 @@ public class HandlerLocatorTests
     {
         // Arrange
         var options = new CQRSOptionsBuilder()
-            .AddHandler<TestQueryHandler>()
-            .WithHandlerLifetime(ServiceLifetime.Transient)
+            .AddHandler<TestQueryHandler>(ServiceLifetime.Transient)
             .Build();
 
         // Act
         var descriptors = HandlerLocator.LocateHandlers(options).ToList();
 
         // Assert
+        Assert.All(descriptors, d => Assert.Equal(ServiceLifetime.Transient, d.Lifetime));
+    }
+
+    [Fact]
+    public void LocateHandlers_WithMixedLifetimes_RegistersWithCorrectLifetimes()
+    {
+        // Arrange
+        var options = new CQRSOptionsBuilder()
+            .AddHandler<TestCommandHandler>(ServiceLifetime.Singleton)
+            .AddHandler<TestQueryHandler>(ServiceLifetime.Transient)
+            .Build();
+
+        // Act
+        var descriptors = HandlerLocator.LocateHandlers(options).ToList();
+
+        // Assert
+        Assert.Equal(2, descriptors.Count);
+
+        var commandDescriptor = descriptors.First(d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
+        Assert.Equal(ServiceLifetime.Singleton, commandDescriptor.Lifetime);
+
+        var queryDescriptor = descriptors.First(d => d.ServiceType == typeof(IQueryHandler<TestQuery, string>));
+        Assert.Equal(ServiceLifetime.Transient, queryDescriptor.Lifetime);
+    }
+
+    [Fact]
+    public void LocateHandlers_FromAssemblyWithSingletonLifetime_RegistersAsSingleton()
+    {
+        // Arrange
+        var options = new CQRSOptionsBuilder()
+            .AddHandlersFromAssemblyContaining<TestCommandHandler>(ServiceLifetime.Singleton)
+            .Build();
+
+        // Act
+        var descriptors = HandlerLocator.LocateHandlers(options).ToList();
+
+        // Assert
+        Assert.NotEmpty(descriptors);
+        Assert.All(descriptors, d => Assert.Equal(ServiceLifetime.Singleton, d.Lifetime));
+    }
+
+    [Fact]
+    public void LocateHandlers_FromAssemblyWithTransientLifetime_RegistersAsTransient()
+    {
+        // Arrange
+        var options = new CQRSOptionsBuilder()
+            .AddHandlersFromAssemblyContaining<TestCommandHandler>(ServiceLifetime.Transient)
+            .Build();
+
+        // Act
+        var descriptors = HandlerLocator.LocateHandlers(options).ToList();
+
+        // Assert
+        Assert.NotEmpty(descriptors);
         Assert.All(descriptors, d => Assert.Equal(ServiceLifetime.Transient, d.Lifetime));
     }
 

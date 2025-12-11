@@ -1,3 +1,4 @@
+using CodeWinden.CQRS.Decorators;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS.Locators;
@@ -15,19 +16,19 @@ public static class HandlerLocator
     public static IEnumerable<ServiceDescriptor> LocateHandlers(CQRSOptions options)
     {
         // Get all types that implement handler interfaces
-        var types = GetAllHandlersTypes(options);
+        var diConfigurations = GetAllHandlersTypes(options);
 
         // For each type, find the interfaces it implements that derive from ICQRSHandler
-        foreach (var type in types)
+        foreach (var diConfiguration in diConfigurations)
         {
             // Get all interfaces implemented by the type that derive from ICQRSHandler
-            var interfaces = type.GetInterfaces()
+            var interfaces = diConfiguration.Type.GetInterfaces()
                 .Where(i => typeof(ICQRSHandler).IsAssignableFrom(i) && i != typeof(ICQRSHandler));
 
             // Register each interface with the concrete type and specified lifetime
             foreach (var handlerInterface in interfaces)
             {
-                yield return ServiceDescriptor.Describe(handlerInterface, type, options.HandlerLifetime);
+                yield return ServiceDescriptor.Describe(handlerInterface, diConfiguration.Type, diConfiguration.Lifetime);
             }
         }
     }
@@ -35,25 +36,32 @@ public static class HandlerLocator
     /// <summary>
     /// Gets all handler types from the specified assembly and explicitly added types.
     /// </summary>
-    private static IEnumerable<Type> GetAllHandlersTypes(CQRSOptions options)
+    private static IEnumerable<CQRSDIConfiguration> GetAllHandlersTypes(CQRSOptions options)
     {
         // If no assembly is specified, return only explicitly added types
         if (options.AssemblyWithHandlers == null)
         {
-            return options.HandlerTypes;
+            return options.Handlers;
         }
 
         // Scan the specified assembly for types implementing ICQRSHandler
-        var assemblyTypes = options.AssemblyWithHandlers.GetTypes()
+        var assemblyDIConfigurations = options.AssemblyWithHandlers.GetTypes()
             .Where(t =>
                 // we only want concrete classes
                 t.IsClass &&
                 !t.IsAbstract &&
                 // that implements the ICQRSHandler marker interface
-                typeof(ICQRSHandler).IsAssignableFrom(t)
-            );
+                typeof(ICQRSHandler).IsAssignableFrom(t) &&
+                // but exclude decorators
+                !typeof(ICQRSHandlerDecorator).IsAssignableFrom(t)
+            )
+            .Select(t => new CQRSDIConfiguration
+            {
+                Type = t,
+                Lifetime = options.HandlerFromAssemblyLifetime
+            });
 
         // Combine types from assembly and explicitly added types
-        return options.HandlerTypes.Concat(assemblyTypes);
+        return options.Handlers.Concat(assemblyDIConfigurations);
     }
 }

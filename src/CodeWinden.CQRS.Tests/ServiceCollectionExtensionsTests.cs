@@ -115,8 +115,8 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         services.AddCQRS(options => options
-            .AddHandler<TestCommandHandler>()
-            .WithHandlerLifetime(ServiceLifetime.Singleton));
+            .AddHandler<TestCommandHandler>(ServiceLifetime.Singleton)
+        );
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
@@ -132,8 +132,8 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         services.AddCQRS(options => options
-            .AddHandler<TestCommandHandler>()
-            .WithHandlerLifetime(ServiceLifetime.Transient));
+            .AddHandler<TestCommandHandler>(ServiceLifetime.Transient)
+        );
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
@@ -149,8 +149,8 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         services.AddCQRS(options => options
-            .AddHandler<TestCommandHandler>()
-            .WithHandlerLifetime(ServiceLifetime.Scoped));
+            .AddHandler<TestCommandHandler>(ServiceLifetime.Scoped)
+        );
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
@@ -325,14 +325,14 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         services.AddCQRS(options => options
-            .AddHandler<TestCommandHandler>()
-            .AddHandler<AnotherTestCommandHandler>()
-            .WithHandlerLifetime(ServiceLifetime.Transient));
+            .AddHandler<TestCommandHandler>(ServiceLifetime.Singleton)
+            .AddHandler<AnotherTestCommandHandler>(ServiceLifetime.Transient)
+        );
 
         // Assert
         var descriptor1 = services.FirstOrDefault(d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
         Assert.NotNull(descriptor1);
-        Assert.Equal(ServiceLifetime.Transient, descriptor1.Lifetime);
+        Assert.Equal(ServiceLifetime.Singleton, descriptor1.Lifetime);
 
         var descriptor2 = services.FirstOrDefault(d => d.ServiceType == typeof(ICommandHandler<AnotherTestCommand>));
         Assert.NotNull(descriptor2);

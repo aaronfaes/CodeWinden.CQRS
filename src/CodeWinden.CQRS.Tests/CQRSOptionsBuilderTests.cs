@@ -1,4 +1,5 @@
 using System.Reflection;
+using CodeWinden.CQRS.DependencyInjection;
 using CodeWinden.CQRS.Tests.Decorators;
 using CodeWinden.CQRS.Tests.Handlers;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,10 +63,10 @@ public class CQRSOptionsBuilderTests
         var options = new CQRSOptions();
 
         // Act & Assert
-        options.Handlers.Add(new CQRSDIConfiguration { Type = typeof(TestCommandHandler), Lifetime = ServiceLifetime.Scoped });
+        options.Handlers.Add(new DependencyInjectionConfiguration { Type = typeof(TestCommandHandler), Lifetime = ServiceLifetime.Scoped });
         Assert.Single(options.Handlers);
 
-        options.Decorators.Add(new CQRSDIConfiguration { Type = typeof(TestCommandHandlerDecorator), Lifetime = ServiceLifetime.Scoped });
+        options.Decorators.Add(new DependencyInjectionConfiguration { Type = typeof(TestCommandHandlerDecorator), Lifetime = ServiceLifetime.Scoped });
         Assert.Single(options.Decorators);
     }
 

@@ -1,4 +1,5 @@
 using CodeWinden.CQRS.Decorators;
+using CodeWinden.CQRS.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS.Locators;
@@ -36,7 +37,7 @@ public static class HandlerLocator
     /// <summary>
     /// Gets all handler types from the specified assembly and explicitly added types.
     /// </summary>
-    private static IEnumerable<CQRSDIConfiguration> GetAllHandlersTypes(CQRSOptions options)
+    private static IEnumerable<DependencyInjectionConfiguration> GetAllHandlersTypes(CQRSOptions options)
     {
         // If no assembly is specified, return only explicitly added types
         if (options.AssemblyWithHandlers == null)
@@ -55,7 +56,7 @@ public static class HandlerLocator
                 // but exclude decorators
                 !typeof(ICQRSHandlerDecorator).IsAssignableFrom(t)
             )
-            .Select(t => new CQRSDIConfiguration
+            .Select(t => new DependencyInjectionConfiguration
             {
                 Type = t,
                 Lifetime = options.HandlerFromAssemblyLifetime

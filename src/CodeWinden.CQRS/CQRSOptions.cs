@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Reflection;
 using CodeWinden.CQRS.Decorators;
+using CodeWinden.CQRS.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS;
@@ -17,11 +18,11 @@ public record CQRSOptions
     /// <summary>
     /// Collection of specific handler types to register.
     /// </summary>
-    public ICollection<CQRSDIConfiguration> Handlers { get; } = new Collection<CQRSDIConfiguration>();
+    public ICollection<DependencyInjectionConfiguration> Handlers { get; } = new Collection<DependencyInjectionConfiguration>();
     /// <summary>
     /// Collection of decorators to apply to handlers.
     /// </summary>
-    public ICollection<CQRSDIConfiguration> Decorators { get; } = new Collection<CQRSDIConfiguration>();
+    public ICollection<DependencyInjectionConfiguration> Decorators { get; } = new Collection<DependencyInjectionConfiguration>();
     /// <summary>
     /// Default lifetime for handlers if not specified otherwise.
     /// </summary>
@@ -46,7 +47,7 @@ public class CQRSOptionsBuilder
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
     public CQRSOptionsBuilder AddHandler<THandler>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
-        _options.Handlers.Add(new CQRSDIConfiguration { Type = typeof(THandler), Lifetime = lifetime });
+        _options.Handlers.Add(new DependencyInjectionConfiguration { Type = typeof(THandler), Lifetime = lifetime });
         return this;
     }
 
@@ -58,7 +59,7 @@ public class CQRSOptionsBuilder
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
     public CQRSOptionsBuilder AddHandler(Type handlerType, ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
-        _options.Handlers.Add(new CQRSDIConfiguration { Type = handlerType, Lifetime = lifetime });
+        _options.Handlers.Add(new DependencyInjectionConfiguration { Type = handlerType, Lifetime = lifetime });
 
         return this;
     }
@@ -97,7 +98,7 @@ public class CQRSOptionsBuilder
     public CQRSOptionsBuilder AddDecorator<TDecorator>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TDecorator : ICQRSHandlerDecorator
     {
-        _options.Decorators.Add(new CQRSDIConfiguration { Type = typeof(TDecorator), Lifetime = lifetime });
+        _options.Decorators.Add(new DependencyInjectionConfiguration { Type = typeof(TDecorator), Lifetime = lifetime });
         return this;
     }
 
@@ -109,7 +110,7 @@ public class CQRSOptionsBuilder
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
     public CQRSOptionsBuilder AddDecorator(Type Type, ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
-        _options.Decorators.Add(new CQRSDIConfiguration { Type = Type, Lifetime = lifetime });
+        _options.Decorators.Add(new DependencyInjectionConfiguration { Type = Type, Lifetime = lifetime });
         return this;
     }
 

@@ -1,8 +1,8 @@
-﻿namespace CodeWinden.CQRS;
-
-using CodeWinden.CQRS.DependencyInjection;
+﻿using CodeWinden.CQRS.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace CodeWinden.CQRS;
 
 /// <summary>
 /// Extension methods for registering CQRS services to an IServiceCollection.

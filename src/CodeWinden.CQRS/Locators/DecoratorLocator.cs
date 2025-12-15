@@ -20,11 +20,22 @@ public static class DecoratorLocator
         {
             // Get all interfaces implemented by the type that derive from ICQRSHandler
             var interfaces = diConfiguration.Type.GetInterfaces()
-                .Where(i => typeof(ICQRSHandlerDecorator).IsAssignableFrom(i) && i != typeof(ICQRSHandlerDecorator));
+                .Where(i =>
+                    typeof(ICQRSHandlerDecorator).IsAssignableFrom(i) &&
+                    i != typeof(ICQRSHandlerDecorator) && i.IsGenericType && i.GetGenericTypeDefinition() != typeof(ICQRSHandlerDecorator<>)
+                );
 
             // Register each interface with the concrete type and specified lifetime
             foreach (var decoratorInterface in interfaces)
             {
+                // Handle open generic types
+                if (decoratorInterface.ContainsGenericParameters)
+                {
+                    yield return ServiceDescriptor.Describe(decoratorInterface.GetGenericTypeDefinition(), diConfiguration.Type, diConfiguration.Lifetime);
+                    continue;
+                }
+
+                // Handle closed types
                 yield return ServiceDescriptor.Describe(decoratorInterface, diConfiguration.Type, diConfiguration.Lifetime);
             }
         }

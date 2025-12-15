@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using CodeWinden.CQRS.Proxies;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS;
@@ -11,6 +13,7 @@ public class CQRSService : ICQRSService
     /// Service provider for resolving handlers.
     /// </summary>
     private readonly IServiceProvider _serviceProvider;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="CQRSService"/> class.
     /// </summary>

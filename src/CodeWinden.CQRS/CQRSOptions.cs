@@ -47,8 +47,7 @@ public class CQRSOptionsBuilder
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
     public CQRSOptionsBuilder AddHandler<THandler>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
-        _options.Handlers.Add(new DependencyInjectionConfiguration { Type = typeof(THandler), Lifetime = lifetime });
-        return this;
+        return AddHandler(typeof(THandler), lifetime);
     }
 
     /// <summary>
@@ -98,19 +97,32 @@ public class CQRSOptionsBuilder
     public CQRSOptionsBuilder AddDecorator<TDecorator>(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TDecorator : ICQRSHandlerDecorator
     {
-        _options.Decorators.Add(new DependencyInjectionConfiguration { Type = typeof(TDecorator), Lifetime = lifetime });
-        return this;
+        return AddDecorator(typeof(TDecorator), lifetime);
     }
 
     /// <summary>
     /// Adds a decorator type to be applied to handlers.
     /// </summary>
-    /// <param name="Type">Type of the decorator to add.</param>
+    /// <param name="type">Type of the decorator to add.</param>
     /// <param name="lifetime">Service lifetime for the decorator.</param>
     /// <returns>The current CQRSOptionsBuilder instance.</returns>
-    public CQRSOptionsBuilder AddDecorator(Type Type, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    public CQRSOptionsBuilder AddDecorator(Type type, ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
-        _options.Decorators.Add(new DependencyInjectionConfiguration { Type = Type, Lifetime = lifetime });
+        // Ensure the type is a concrete class
+        if (type.IsAbstract || type.IsInterface)
+        {
+            throw new ArgumentException("Decorator type must be a concrete class.", nameof(type));
+        }
+
+        // Ensure the type implements ICQRSHandlerDecorator
+        if (!typeof(ICQRSHandlerDecorator).IsAssignableFrom(type))
+        {
+            throw new ArgumentException("Decorator type must implement ICQRSHandlerDecorator. Use ICQRSCommandHandlerDecorator or ICQRSQueryHandlerDecorator instead.", nameof(type));
+        }
+
+        // Add the decorator configuration
+        _options.Decorators.Add(new DependencyInjectionConfiguration { Type = type, Lifetime = lifetime });
+
         return this;
     }
 

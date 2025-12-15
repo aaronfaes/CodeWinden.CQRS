@@ -1,4 +1,5 @@
 using CodeWinden.CQRS.Locators;
+using CodeWinden.CQRS.Proxies;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -16,16 +17,29 @@ public static class DependencyInjectionRegistrar
     /// <param name="options">The CQRS options to use for configuring CQRS.</param>
     public static void RegisterHandlers(IServiceCollection services, CQRSOptions options)
     {
-        // Locate all handlers
-        var handlers = HandlerLocator.LocateHandlers(options);
-
         // Locate all decorators
         var decorators = DecoratorLocator.LocateDecorators(options);
 
-        // Register handlers with the configured decorators
+        // Loop over all decorators and register them
+        foreach (var decorator in decorators)
+        {
+            services.TryAdd(decorator);
+        }
+
+        // Locate all handlers
+        var handlers = HandlerLocator.LocateHandlers(options);
+
+        // Loop over all handlers and register them
         foreach (var handler in handlers)
         {
-            services.TryAdd(handler);
+            // Register the handler with it's explicit implementation to the service collection
+            services.TryAdd(ServiceDescriptor.Describe(handler.ImplementationType!, handler.ImplementationType!, handler.Lifetime));
+
+            // Create proxy handler with decorators
+            var proxyHandlerServiceDescriptor = ProxyHandlerFactory.CreateProxyServiceDescriptor(handler);
+
+            // Register the proxy handler to the service collection
+            services.TryAdd(proxyHandlerServiceDescriptor);
         }
     }
 }

@@ -4,9 +4,9 @@ namespace CodeWinden.CQRS.Decorators;
 /// Decorator for CQRS command handlers.
 /// </summary>
 /// <typeparam name="TCommand"></typeparam>
-public interface ICQRSCommandHandlerDecorator<TCommand> :
+public interface ICommandHandlerDecorator<TCommand> :
     ICommandHandler<TCommand>,
-    ICQRSHandlerDecorator
+    ICQRSHandlerDecorator<ICommandHandler<TCommand>>
     where TCommand : ICommand
 { }
 
@@ -15,8 +15,8 @@ public interface ICQRSCommandHandlerDecorator<TCommand> :
 /// </summary>
 /// <typeparam name="TCommand">Type of the command.</typeparam>
 /// <typeparam name="TResult">Type of the result.</typeparam>
-public interface ICQRSCommandHandlerDecorator<TCommand, TResult> :
+public interface ICommandHandlerDecorator<TCommand, TResult> :
     ICommandHandler<TCommand, TResult>,
-    ICQRSHandlerDecorator
+    ICQRSHandlerDecorator<ICommandHandler<TCommand, TResult>>
     where TCommand : ICommand<TResult>
 { }

@@ -4,9 +4,9 @@ namespace CodeWinden.CQRS.Decorators;
 /// Decorator for CQRS query handlers.
 /// </summary>
 /// <typeparam name="TResult">Type of the result.</typeparam>
-public interface ICQRSQueryHandlerDecorator<TResult> :
+public interface IQueryHandlerDecorator<TResult> :
     IQueryHandler<TResult>,
-    ICQRSHandlerDecorator
+    ICQRSHandlerDecorator<IQueryHandler<TResult>>
 { }
 
 /// <summary>
@@ -14,8 +14,8 @@ public interface ICQRSQueryHandlerDecorator<TResult> :
 /// </summary>
 /// <typeparam name="TQuery">Type of the query.</typeparam>
 /// <typeparam name="TResult">Type of the result.</typeparam>
-public interface ICQRSQueryHandlerDecorator<TQuery, TResult> :
+public interface IQueryHandlerDecorator<TQuery, TResult> :
     IQueryHandler<TQuery, TResult>,
-    ICQRSHandlerDecorator
+    ICQRSHandlerDecorator<IQueryHandler<TQuery, TResult>>
     where TQuery : IQuery<TResult>
 { }

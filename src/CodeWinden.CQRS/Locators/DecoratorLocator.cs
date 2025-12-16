@@ -20,7 +20,7 @@ public static class DecoratorLocator
         {
             // Get all interfaces implemented by the type that derive from ICQRSHandler
             var interfaces = diConfiguration.Type.GetInterfaces()
-                .Where(i =>
+                .Where(static i =>
                     typeof(ICQRSHandlerDecorator).IsAssignableFrom(i) &&
                     i != typeof(ICQRSHandlerDecorator) && i.IsGenericType && i.GetGenericTypeDefinition() != typeof(ICQRSHandlerDecorator<>)
                 );

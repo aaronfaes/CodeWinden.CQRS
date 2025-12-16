@@ -24,7 +24,7 @@ public static class HandlerLocator
         {
             // Get all interfaces implemented by the type that derive from ICQRSHandler
             var interfaces = diConfiguration.Type.GetInterfaces()
-                .Where(i => typeof(ICQRSHandler).IsAssignableFrom(i) && i != typeof(ICQRSHandler));
+                .Where(static i => typeof(ICQRSHandler).IsAssignableFrom(i) && i != typeof(ICQRSHandler));
 
             // Register each interface with the concrete type and specified lifetime
             foreach (var handlerInterface in interfaces)
@@ -47,7 +47,7 @@ public static class HandlerLocator
 
         // Scan the specified assembly for types implementing ICQRSHandler
         var assemblyDIConfigurations = options.AssemblyWithHandlers.GetTypes()
-            .Where(t =>
+            .Where(static t =>
                 // we only want concrete classes
                 t.IsClass &&
                 !t.IsAbstract &&

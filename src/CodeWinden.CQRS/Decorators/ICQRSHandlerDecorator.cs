@@ -9,6 +9,7 @@ public interface ICQRSHandlerDecorator { }
 /// Marker interface for CQRS handler decorators.
 /// </summary>
 public interface ICQRSHandlerDecorator<THandler> : ICQRSHandlerDecorator
+    where THandler : ICQRSHandler
 {
     /// <summary>
     /// Sets the handler to be decorated.

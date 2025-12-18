@@ -50,28 +50,28 @@ public static class ProxyHandlerFactory
     private static ServiceDescriptor CreateCommandHandlerProxyDescriptor(ServiceDescriptor handler)
     {
         var genericType = handler.ServiceType.GetGenericArguments();
-        var proxyType = _commandHandlerProxyTypeDefinition.MakeGenericType(handler.ImplementationType!, genericType[0]);
-        return ServiceDescriptor.Describe(handler.ServiceType, proxyType, handler.Lifetime);
+        var proxyType = _commandHandlerProxyTypeDefinition.MakeGenericType(handler.ServiceType, genericType[0]);
+        return ServiceDescriptor.Describe(proxyType, proxyType, handler.Lifetime);
     }
 
     private static ServiceDescriptor CreateCommandHandlerWithResultProxyDescriptor(ServiceDescriptor handler)
     {
         var genericType = handler.ServiceType.GetGenericArguments();
-        var proxyType = _commandHandlerWithResultProxyTypeDefinition.MakeGenericType(handler.ImplementationType!, genericType[0], genericType[1]);
-        return ServiceDescriptor.Describe(handler.ServiceType, proxyType, handler.Lifetime);
+        var proxyType = _commandHandlerWithResultProxyTypeDefinition.MakeGenericType(handler.ServiceType, genericType[0], genericType[1]);
+        return ServiceDescriptor.Describe(proxyType, proxyType, handler.Lifetime);
     }
 
     private static ServiceDescriptor CreateQueryHandlerProxyDescriptor(ServiceDescriptor handler)
     {
         var genericType = handler.ServiceType.GetGenericArguments();
-        var proxyType = _queryHandlerProxyTypeDefinition.MakeGenericType(handler.ImplementationType!, genericType[0]);
-        return ServiceDescriptor.Describe(handler.ServiceType, proxyType, handler.Lifetime);
+        var proxyType = _queryHandlerProxyTypeDefinition.MakeGenericType(handler.ServiceType, genericType[0]);
+        return ServiceDescriptor.Describe(proxyType, proxyType, handler.Lifetime);
     }
 
     private static ServiceDescriptor CreateQueryHandlerWithQueryProxyDescriptor(ServiceDescriptor handler)
     {
         var genericType = handler.ServiceType.GetGenericArguments();
-        var proxyType = _queryHandlerWithResultProxyTypeDefinition.MakeGenericType(handler.ImplementationType!, genericType[0], genericType[1]);
-        return ServiceDescriptor.Describe(handler.ServiceType, proxyType, handler.Lifetime);
+        var proxyType = _queryHandlerWithResultProxyTypeDefinition.MakeGenericType(handler.ServiceType, genericType[0], genericType[1]);
+        return ServiceDescriptor.Describe(proxyType, proxyType, handler.Lifetime);
     }
 }

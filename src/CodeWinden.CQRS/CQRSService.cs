@@ -34,7 +34,7 @@ public class CQRSService : ICQRSService
         where TCommand : ICommand
     {
         // Resolve the appropriate command handler
-        var handler = _serviceProvider.GetRequiredService<ICommandHandler<TCommand>>();
+        var handler = _serviceProvider.GetRequiredService<CommandHandlerProxy<ICommandHandler<TCommand>, TCommand>>();
 
         // Execute the command using the handler
         return handler.Handle(command, cancellationToken);
@@ -52,7 +52,7 @@ public class CQRSService : ICQRSService
         where TCommand : ICommand<TResult>
     {
         // Resolve the appropriate command handler
-        var handler = _serviceProvider.GetRequiredService<ICommandHandler<TCommand, TResult>>();
+        var handler = _serviceProvider.GetRequiredService<CommandHandlerProxy<ICommandHandler<TCommand, TResult>, TCommand, TResult>>();
 
         // Execute the command using the handler
         return handler.Handle(command, cancellationToken);
@@ -67,7 +67,7 @@ public class CQRSService : ICQRSService
     public Task<TResult> ExecuteQuery<TResult>(CancellationToken cancellationToken = default)
     {
         // Resolve the appropriate query handler
-        var handler = _serviceProvider.GetRequiredService<IQueryHandler<TResult>>();
+        var handler = _serviceProvider.GetRequiredService<QueryHandlerProxy<IQueryHandler<TResult>, TResult>>();
 
         // Execute the query using the handler
         return handler.Handle(cancellationToken);
@@ -85,7 +85,7 @@ public class CQRSService : ICQRSService
         where TQuery : IQuery<TResult>
     {
         // Resolve the appropriate query handler
-        var handler = _serviceProvider.GetRequiredService<IQueryHandler<TQuery, TResult>>();
+        var handler = _serviceProvider.GetRequiredService<QueryHandlerProxy<IQueryHandler<TQuery, TResult>, TQuery, TResult>>();
 
         // Execute the query using the handler
         return handler.Handle(query, cancellationToken);

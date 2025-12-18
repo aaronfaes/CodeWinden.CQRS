@@ -32,8 +32,8 @@ public static class DependencyInjectionRegistrar
         // Loop over all handlers and register them
         foreach (var handler in handlers)
         {
-            // Register the handler with it's explicit implementation to the service collection
-            services.TryAdd(ServiceDescriptor.Describe(handler.ImplementationType!, handler.ImplementationType!, handler.Lifetime));
+            // Register the handler to the service collection
+            services.TryAdd(ServiceDescriptor.Describe(handler.ServiceType, handler.ImplementationType!, handler.Lifetime));
 
             // Create proxy handler with decorators
             var proxyHandlerServiceDescriptor = ProxyHandlerFactory.CreateProxyServiceDescriptor(handler);

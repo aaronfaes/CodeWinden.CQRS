@@ -20,6 +20,22 @@ A minimal CQRS framework that separates commands (writes) from queries (reads) t
 dotnet add package CodeWinden.CQRS
 ```
 
+### CodeWinden.CQRS.FluentValidation
+
+Automatic validation extension for CodeWinden.CQRS using FluentValidation to validate commands and queries before handler execution.
+
+**Key Features:**
+- Automatic validation before handler execution
+- Decorator-based integration
+- Fail-fast behavior with clear error messages
+- Works with all command and query patterns
+
+[**View Documentation →**](src/CodeWinden.CQRS.FluentValidation/README.md)
+
+```bash
+dotnet add package CodeWinden.CQRS.FluentValidation
+```
+
 ---
 
 ## License

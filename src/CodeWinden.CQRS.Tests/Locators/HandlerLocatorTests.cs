@@ -1,4 +1,5 @@
 using CodeWinden.CQRS.Locators;
+using CodeWinden.CQRS.Tests.FluentValidation.Handlers;
 using CodeWinden.CQRS.Tests.Handlers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,7 +23,7 @@ public class HandlerLocatorTests
 
         // Assert
         Assert.NotEmpty(descriptors);
-        Assert.Equal(8, descriptors.Count); // Exclude all decorators
+        Assert.Equal(12, descriptors.Count); // 8 core handlers + 4 FluentValidation handlers
         Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<TestCommand>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<TestCommandWithResult, int>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<AnotherTestCommand>));
@@ -31,6 +32,10 @@ public class HandlerLocatorTests
         Assert.Contains(descriptors, d => d.ServiceType == typeof(IQueryHandler<TestQuery, string>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(IQueryHandler<AnotherTestQuery, int>));
         Assert.Contains(descriptors, d => d.ServiceType == typeof(IQueryHandler<bool>));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<ValidatedCommand>));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<ValidatedCommandWithResult, string>));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(ICommandHandler<MultiValidatorCommand>));
+        Assert.Contains(descriptors, d => d.ServiceType == typeof(IQueryHandler<ValidatedQuery, int>));
     }
 
     [Fact]

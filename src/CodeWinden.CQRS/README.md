@@ -339,4 +339,4 @@ public async Task<UserDto> Handle(GetUserQuery query, CancellationToken cancella
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License - see [LICENSE](LICENSE.md) for details

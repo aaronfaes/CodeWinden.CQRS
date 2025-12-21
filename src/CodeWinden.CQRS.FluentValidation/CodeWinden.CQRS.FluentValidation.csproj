@@ -4,14 +4,37 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>CodeWinden.CQRS.FluentValidation</PackageId>
+    <Version>1.0.0</Version>
+    <Title>CodeWinden.CQRS.FluentValidation</Title>
+    <Description>Extension on CodeWinden.CQRS to handle validation through FluentValidation.</Description>
+    <Authors>Aäron Faes</Authors>
+    <Company>CodeWinden</Company>
+    <Product>CodeWinden.CQRS.FluentValidation</Product>
+    <PackageTags>CQRS;FluentValidation</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/aaronfaes/CodeWinden.CQRS</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl> 
+    <RootNamespace>CodeWinden.CQRS.FluentValidation</RootNamespace>
+    <AssemblyName>CodeWinden.CQRS.FluentValidation</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../CodeWinden.CQRS/CodeWinden.CQRS.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Decorators/" />
   </ItemGroup>
 
 </Project>

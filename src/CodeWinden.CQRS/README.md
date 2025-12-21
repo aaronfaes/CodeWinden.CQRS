@@ -7,9 +7,10 @@ A minimal, opinionated CQRS framework for .NET that separates commands (writes) 
 - **Zero boilerplate** - Automatic handler discovery and registration
 - **Type-safe execution** - Strongly-typed commands, queries, and results
 - **Flexible configuration** - Register handlers by assembly scanning or explicit registration
+- **Decorator support** - Add cross-cutting concerns like logging, validation, and caching without modifying handlers
 - **Dependency injection ready** - Built on `Microsoft.Extensions.DependencyInjection`
 - **Supports multiple patterns** - Commands with/without return values, queries with/without parameters
-- **Configurable lifetimes** - Control handler service lifetimes (Scoped, Transient, Singleton)
+- **Configurable lifetimes** - Control handler and decorator service lifetimes (Scoped, Transient, Singleton)
 
 ## Installation
 
@@ -256,6 +257,68 @@ public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, int
 }
 ```
 
+### Decorators
+
+Decorators wrap handlers to add cross-cutting concerns like logging, validation, caching, or transaction management without modifying handler code.
+
+**Creating a logging decorator**
+```csharp
+using CodeWinden.CQRS.Decorators;
+using Microsoft.Extensions.Logging;
+
+// Generic decorator that wraps all command handlers
+public class LoggingCommandDecorator<TCommand> : 
+    BaseDecorator<ICommandHandler<TCommand>>,
+    ICommandHandlerDecorator<TCommand>
+    where TCommand : ICommand
+{
+    private readonly ILogger<LoggingCommandDecorator<TCommand>> _logger;
+    
+    public LoggingCommandDecorator(ILogger<LoggingCommandDecorator<TCommand>> logger)
+    {
+        _logger = logger;
+    }
+    
+    public async Task Handle(TCommand command, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Executing command: {CommandType}", typeof(TCommand).Name);
+        
+        try
+        {
+            // Call the wrapped handler via _handler (injected by framework)
+            await _handler.Handle(command, cancellationToken);
+            _logger.LogInformation("Command executed successfully: {CommandType}", typeof(TCommand).Name);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Command failed: {CommandType}", typeof(TCommand).Name);
+            throw;
+        }
+    }
+}
+
+// Register the decorator - applies to all commands
+services.AddCQRS(options => options
+    .AddHandlersFromAssemblyContaining<Program>()
+    .AddDecorator(typeof(LoggingCommandDecorator<>))
+);
+```
+
+**Combining multiple decorators**
+```csharp
+// Decorators execute in registration order (first registered = outermost)
+services.AddCQRS(options => options
+    .AddHandlersFromAssemblyContaining<Program>()
+    .AddDecorator(typeof(LoggingCommandDecorator<>))           // Executes first (outer)
+    .AddDecorator(typeof(ValidationCommandDecorator<,>))       // Executes second
+    .AddDecorator(typeof(TransactionCommandDecorator<>))       // Executes third (inner)
+);
+
+// Execution flow: Logging → Validation → Transaction → Handler → Transaction → Validation → Logging
+```
+
+Decorators support dependency injection and can be registered with different lifetimes (`Scoped`, `Transient`, `Singleton`). Available interfaces: `ICommandHandlerDecorator<TCommand>`, `ICommandHandlerDecorator<TCommand, TResult>`, `IQueryHandlerDecorator<TResult>`, `IQueryHandlerDecorator<TQuery, TResult>`.
+
 ## API Reference
 
 ### Core Interfaces
@@ -270,6 +333,11 @@ public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, int
 | `ICommandHandler<TCommand, TResult>` | Handler for commands with return value |
 | `IQueryHandler<TResult>` | Handler for queries without parameters |
 | `IQueryHandler<TQuery, TResult>` | Handler for queries with parameters |
+| `ICommandHandlerDecorator<TCommand>` | Decorator for commands without return value |
+| `ICommandHandlerDecorator<TCommand, TResult>` | Decorator for commands with return value |
+| `IQueryHandlerDecorator<TResult>` | Decorator for parameterless queries |
+| `IQueryHandlerDecorator<TQuery, TResult>` | Decorator for queries with parameters |
+| `BaseDecorator<THandler>` | Base class for creating decorators with automatic handler injection |
 
 ### Configuration Methods
 
@@ -279,6 +347,8 @@ public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, int
 | `AddHandler<THandler>()` | Explicitly registers a single handler |
 | `AddHandlersFromAssemblyContaining<T>()` | Scans assembly for all handlers |
 | `WithHandlerLifetime(ServiceLifetime)` | Sets handler lifetime (Scoped, Transient, Singleton) |
+| `AddDecorator<TDecorator>()` | Registers a decorator to wrap handlers |
+| `AddDecorator(Type)` | Registers a generic decorator type (e.g., `typeof(LoggingDecorator<>)`) |
 
 ## Best Practices
 
@@ -332,6 +402,28 @@ public async Task<UserDto> Handle(GetUserQuery query, CancellationToken cancella
     // Pass cancellation token to async operations
     var user = await _repository.GetByIdAsync(query.UserId, cancellationToken);
     return MapToDto(user);
+}
+```
+
+**Use decorators for cross-cutting concerns**
+```csharp
+// ✅ Add logging, validation, caching via decorators
+public class LoggingCommandDecorator<TCommand> : 
+    BaseDecorator<ICommandHandler<TCommand>>,
+    ICommandHandlerDecorator<TCommand>
+    where TCommand : ICommand
+{
+    // Decorator implementation
+}
+
+// ❌ Don't add cross-cutting logic directly in handlers
+public class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, int>
+{
+    public async Task<int> Handle(CreateUserCommand command, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Creating user..."); // Avoid - use decorator instead
+        // Handler logic
+    }
 }
 ```
 

@@ -3,7 +3,7 @@ namespace CodeWinden.CQRS.Decorators;
 /// <summary>
 /// Decorator for CQRS command handlers.
 /// </summary>
-/// <typeparam name="TCommand"></typeparam>
+/// <typeparam name="TCommand">Type of the command.</typeparam>
 public interface ICommandHandlerDecorator<TCommand> :
     ICommandHandler<TCommand>,
     ICQRSHandlerDecorator<ICommandHandler<TCommand>>

@@ -7,7 +7,7 @@
     <PackageId>CodeWinden.CQRS.FluentValidation</PackageId>
     <Version>1.0.0</Version>
     <Title>CodeWinden.CQRS.FluentValidation</Title>
-    <Description>Extension on CodeWinden.CQRS to handle validation through FluentValidation.</Description>
+    <Description>Extension for CodeWinden.CQRS to handle validation through FluentValidation.</Description>
     <Authors>Aäron Faes</Authors>
     <Company>CodeWinden</Company>
     <Product>CodeWinden.CQRS.FluentValidation</Product>

@@ -121,7 +121,7 @@ public class CQRSOptionsBuilder
         // Ensure the type implements ICQRSHandlerDecorator
         if (!typeof(ICQRSHandlerDecorator).IsAssignableFrom(type))
         {
-            throw new ArgumentException("Decorator type must implement ICQRSHandlerDecorator. Use ICQRSCommandHandlerDecorator or ICQRSQueryHandlerDecorator instead.", nameof(type));
+            throw new ArgumentException($"Decorator type must implement {nameof(ICQRSHandlerDecorator)}. Use {nameof(ICommandHandlerDecorator<>)} or {nameof(IQueryHandlerDecorator<>)} instead.", nameof(type));
         }
 
         // Add the decorator configuration

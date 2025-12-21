@@ -541,6 +541,83 @@ public class CQRSServiceTests
         AssertLogContains("Handling TestCommand with Id: 500");
     }
 
+    [Fact]
+    public async Task ExecuteCommand_WithMultiInterfaceHandler_HandlerHandlesBothCommandTypes()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<MultiInterfaceHandler>());
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command1 = new MultiTestCommand();
+        var command2 = new MultiAnotherTestCommand();
+
+        // Act
+        await cqrsService.ExecuteCommand(command1);
+        await cqrsService.ExecuteCommand(command2);
+
+        // Assert - verify both commands were handled by the same handler
+        AssertLogContains("Handling MultiTestCommand");
+        AssertLogContains("Handling MultiAnotherTestCommand");
+    }
+
+    [Fact]
+    public void CQRSService_WithAdditionalRegistrations_ExecutesAdditionalRegistrations()
+    {
+        // Arrange
+        var additionalServiceCalled = false;
+        var services = new ServiceCollection();
+        services.AddSingleton(_logger);
+
+        services.AddCQRS(builder =>
+        {
+            builder.AddHandler<TestCommandHandler>();
+            builder.AddAdditionalRegistration(svc =>
+            {
+                additionalServiceCalled = true;
+                svc.AddSingleton<string>("custom-service");
+            });
+        });
+
+        // Act
+        var serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        Assert.True(additionalServiceCalled);
+        var customService = serviceProvider.GetService<string>();
+        Assert.Equal("custom-service", customService);
+    }
+
+    [Fact]
+    public async Task CQRSService_WithAdditionalRegistrationsAndHandlers_BothWorkTogether()
+    {
+        // Arrange
+        var customValue = "test-custom-value";
+        var services = new ServiceCollection();
+        services.AddSingleton(_logger);
+
+        services.AddCQRS(builder =>
+        {
+            builder.AddHandler<TestCommandHandler>();
+            builder.AddAdditionalRegistration(svc =>
+            {
+                svc.AddSingleton(customValue);
+            });
+        });
+
+        var serviceProvider = services.BuildServiceProvider();
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 999 };
+
+        // Act
+        await cqrsService.ExecuteCommand(command);
+        var retrievedValue = serviceProvider.GetService<string>();
+
+        // Assert - both CQRS and additional registration work
+        AssertLogContains("Handling TestCommand with Id: 999");
+        Assert.Equal(customValue, retrievedValue);
+    }
+
     // Error Handling Tests
     [Fact]
     public async Task ExecuteCommand_WithoutRegisteredHandler_ThrowsException()

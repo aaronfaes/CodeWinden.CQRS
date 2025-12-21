@@ -406,6 +406,78 @@ public class CQRSOptionsBuilderTests
         Assert.Contains("Decorator type must be a concrete class", exception.Message);
     }
 
+    // AddAdditionalRegistration Tests
+    [Fact]
+    public void AddAdditionalRegistration_WithAction_AddsToAdditionalRegistrations()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+        var called = false;
+        Action<IServiceCollection> registrationAction = services => { called = true; };
+
+        // Act
+        var result = builder.AddAdditionalRegistration(registrationAction);
+
+        // Assert
+        var options = result.Build();
+        Assert.Same(builder, result);
+        Assert.Single(options.AdditionalRegistrations);
+
+        // Verify the action works
+        var testServices = new ServiceCollection();
+        options.AdditionalRegistrations.First()(testServices);
+        Assert.True(called);
+    }
+
+    [Fact]
+    public void AddAdditionalRegistration_WithMultipleActions_AddsAllActions()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+        var callCount = 0;
+
+        // Act
+        builder.AddAdditionalRegistration(services => { callCount++; })
+               .AddAdditionalRegistration(services => { callCount++; })
+               .AddAdditionalRegistration(services => { callCount++; });
+
+        // Assert
+        var options = builder.Build();
+        Assert.Equal(3, options.AdditionalRegistrations.Count);
+
+        // Verify all actions work
+        var testServices = new ServiceCollection();
+        foreach (var action in options.AdditionalRegistrations)
+        {
+            action(testServices);
+        }
+        Assert.Equal(3, callCount);
+    }
+
+    [Fact]
+    public void AddAdditionalRegistration_WithServiceRegistration_RegistersServicesToCollection()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+        var testInstance = new TestCommandHandler(null!);
+
+        // Act
+        builder.AddAdditionalRegistration(services =>
+        {
+            services.AddSingleton<string>("test-value");
+            services.AddScoped<TestCommandHandler>(_ => testInstance);
+        });
+
+        // Assert
+        var options = builder.Build();
+        var testServices = new ServiceCollection();
+        options.AdditionalRegistrations.First()(testServices);
+
+        Assert.Equal(2, testServices.Count);
+        Assert.Contains(testServices, d => d.ServiceType == typeof(string));
+        Assert.Contains(testServices, d => d.ServiceType == typeof(TestCommandHandler));
+    }
+
     // Builder Integration Tests
     [Fact]
     public void Build_CalledMultipleTimes_ReturnsSameOptionsInstance()

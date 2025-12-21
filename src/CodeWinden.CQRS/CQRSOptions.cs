@@ -24,6 +24,10 @@ public record CQRSOptions
     /// </summary>
     public ICollection<DependencyInjectionConfiguration> Decorators { get; } = new Collection<DependencyInjectionConfiguration>();
     /// <summary>
+    /// Additional registrations to perform on the service collection.
+    /// </summary>
+    public ICollection<Action<IServiceCollection>> AdditionalRegistrations { get; } = new Collection<Action<IServiceCollection>>();
+    /// <summary>
     /// Default lifetime for handlers if not specified otherwise.
     /// </summary>
     public ServiceLifetime HandlerFromAssemblyLifetime { get; set; } = ServiceLifetime.Scoped;
@@ -123,6 +127,17 @@ public class CQRSOptionsBuilder
         // Add the decorator configuration
         _options.Decorators.Add(new DependencyInjectionConfiguration { Type = type, Lifetime = lifetime });
 
+        return this;
+    }
+
+    /// <summary>
+    /// Adds an additional registration action to be performed on the service collection.
+    /// </summary>
+    /// <param name="registrationAction">The action to perform additional registrations on the service collection.</param>
+    /// <returns>The current CQRSOptionsBuilder instance.</returns>
+    public CQRSOptionsBuilder AddAdditionalRegistration(Action<IServiceCollection> registrationAction)
+    {
+        _options.AdditionalRegistrations.Add(registrationAction);
         return this;
     }
 

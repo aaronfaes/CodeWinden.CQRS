@@ -41,5 +41,11 @@ public static class DependencyInjectionRegistrar
             // Register the proxy handler to the service collection
             services.TryAdd(proxyHandlerServiceDescriptor);
         }
+
+        // Loop over all additional registrations and execute them
+        foreach (var additionalRegistration in options.AdditionalRegistrations)
+        {
+            additionalRegistration(services);
+        }
     }
 }

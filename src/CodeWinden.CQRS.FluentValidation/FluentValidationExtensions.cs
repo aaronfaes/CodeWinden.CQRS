@@ -9,23 +9,20 @@ namespace CodeWinden.CQRS;
 /// </summary>
 public static class FluentValidationExtensions
 {
-    extension(CQRSOptionsBuilder builder)
+    /// <summary>
+    /// Adds FluentValidation decorators to the CQRS pipeline.
+    /// </summary>
+    /// <returns>The updated CQRSOptionsBuilder.</returns>
+    public static CQRSOptionsBuilder AddFluentValidation<TAssembly>(this CQRSOptionsBuilder builder)
     {
-        /// <summary>
-        /// Adds FluentValidation decorators to the CQRS pipeline.
-        /// </summary>
-        /// <returns>The updated CQRSOptionsBuilder.</returns>
-        public CQRSOptionsBuilder AddFluentValidation<TAssembly>()
-        {
-            // Add Decorators for FluentValidation
-            builder.AddDecorator(typeof(FluentValidationCommandHandlerDecorator<>));
-            builder.AddDecorator(typeof(FluentValidationCommandWithResultHandlerDecorator<,>));
-            builder.AddDecorator(typeof(FluentValidationQueryHandlerDecorator<,>));
+        // Add Decorators for FluentValidation
+        builder.AddDecorator(typeof(FluentValidationCommandHandlerDecorator<>));
+        builder.AddDecorator(typeof(FluentValidationCommandWithResultHandlerDecorator<,>));
+        builder.AddDecorator(typeof(FluentValidationQueryHandlerDecorator<,>));
 
-            // Register all AbstractValidator<> types from the assemblies
-            builder.AddAdditionalRegistration(services => services.AddValidatorsFromAssemblyContaining<TAssembly>(ServiceLifetime.Scoped));
+        // Register all AbstractValidator<> types from the assemblies
+        builder.AddAdditionalRegistration(services => services.AddValidatorsFromAssemblyContaining<TAssembly>(ServiceLifetime.Scoped));
 
-            return builder;
-        }
+        return builder;
     }
 }

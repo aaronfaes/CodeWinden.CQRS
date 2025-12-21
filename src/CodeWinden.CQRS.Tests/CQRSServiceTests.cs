@@ -82,13 +82,15 @@ public class CQRSServiceTests
 
         var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
         var command = new TestCommand { Id = 456 };
-        var cts = new CancellationTokenSource();
 
-        // Act
-        await cqrsService.ExecuteCommand(command, cts.Token);
+        using (var cts = new CancellationTokenSource())
+        {
+            // Act
+            await cqrsService.ExecuteCommand(command, cts.Token);
 
-        // Assert - handler executed without cancellation
-        Assert.False(cts.Token.IsCancellationRequested);
+            // Assert - handler executed without cancellation
+            Assert.False(cts.Token.IsCancellationRequested);
+        }
     }
 
     [Fact]
@@ -157,13 +159,15 @@ public class CQRSServiceTests
 
         var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
         var command = new TestCommandWithResult { Value = 5 };
-        var cts = new CancellationTokenSource();
 
-        // Act
-        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command, cts.Token);
+        using (var cts = new CancellationTokenSource())
+        {
+            // Act
+            var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command, cts.Token);
 
-        // Assert
-        Assert.Equal(210, result); // 5 * 42
+            // Assert
+            Assert.Equal(210, result); // 5 * 42
+        }
     }
 
     [Fact]
@@ -208,13 +212,15 @@ public class CQRSServiceTests
             builder.AddHandler<ParameterlessQueryHandler>());
 
         var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
-        var cts = new CancellationTokenSource();
 
-        // Act
-        var result = await cqrsService.ExecuteQuery<bool>(cts.Token);
+        using (var cts = new CancellationTokenSource())
+        {
+            // Act
+            var result = await cqrsService.ExecuteQuery<bool>(cts.Token);
 
-        // Assert
-        Assert.True(result);
+            // Assert
+            Assert.True(result);
+        }
     }
 
     [Fact]
@@ -260,13 +266,15 @@ public class CQRSServiceTests
 
         var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
         var query = new TestQuery { Id = 99 };
-        var cts = new CancellationTokenSource();
 
-        // Act
-        var result = await cqrsService.ExecuteQuery<TestQuery, string>(query, cts.Token);
+        using (var cts = new CancellationTokenSource())
+        {
+            // Act
+            var result = await cqrsService.ExecuteQuery<TestQuery, string>(query, cts.Token);
 
-        // Assert
-        Assert.Equal("Result for Id: 99", result);
+            // Assert
+            Assert.Equal("Result for Id: 99", result);
+        }
     }
 
     [Fact]

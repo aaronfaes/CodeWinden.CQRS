@@ -293,15 +293,18 @@ public class CQRSServiceTests
         // Arrange
         var context = CreateServiceProvider();
         var command = new ValidatedCommand { Name = "John Doe", Age = 30 };
-        var cts = new CancellationTokenSource();
-        cts.Cancel();
 
-        // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            async () => await context.Service.ExecuteCommand(command, cts.Token));
+        using (var cts = new CancellationTokenSource())
+        {
+            cts.Cancel();
 
-        // Handler should not be called due to cancellation during validation
-        Assert.False(context.Tracker.WasCalled(nameof(ValidatedCommandHandler)));
+            // Act & Assert
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await context.Service.ExecuteCommand(command, cts.Token));
+
+            // Handler should not be called due to cancellation during validation
+            Assert.False(context.Tracker.WasCalled(nameof(ValidatedCommandHandler)));
+        }
     }
 
     [Fact]
@@ -310,14 +313,17 @@ public class CQRSServiceTests
         // Arrange
         var context = CreateServiceProvider();
         var query = new ValidatedQuery { MinValue = 10, MaxValue = 20 };
-        var cts = new CancellationTokenSource();
-        cts.Cancel();
 
-        // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            async () => await context.Service.ExecuteQuery<ValidatedQuery, int>(query, cts.Token));
+        using (var cts = new CancellationTokenSource())
+        {
+            cts.Cancel();
 
-        // Handler should not be called due to cancellation during validation
-        Assert.False(context.Tracker.WasCalled(nameof(ValidatedQueryHandler)));
+            // Act & Assert
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await context.Service.ExecuteQuery<ValidatedQuery, int>(query, cts.Token));
+
+            // Handler should not be called due to cancellation during validation
+            Assert.False(context.Tracker.WasCalled(nameof(ValidatedQueryHandler)));
+        }
     }
 }

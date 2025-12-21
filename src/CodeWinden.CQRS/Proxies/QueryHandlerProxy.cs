@@ -30,7 +30,7 @@ public class QueryHandlerProxy<THandler, TResult> :
         // Get the decorated handler
         var handler = GetDecoratedHandler();
 
-        // Execute the command using the handler
+        // Execute the query using the handler
         return handler.Handle(cancellationToken);
     }
 }
@@ -65,7 +65,7 @@ public class QueryHandlerProxy<THandler, TQuery, TResult> :
         // Get the decorated handler
         var handler = GetDecoratedHandler();
 
-        // Execute the command using the handler
+        // Execute the query using the handler
         return handler.Handle(query, cancellationToken);
     }
 }

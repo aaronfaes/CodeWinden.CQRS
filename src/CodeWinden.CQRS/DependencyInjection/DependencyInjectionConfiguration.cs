@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CodeWinden.CQRS.DependencyInjection;
 
 /// <summary>
-/// Configuration for a CQRS decorator to be registered in the DI container.
+/// Configuration for a service to be registered in the DI container.
 /// </summary>
 public record DependencyInjectionConfiguration
 {

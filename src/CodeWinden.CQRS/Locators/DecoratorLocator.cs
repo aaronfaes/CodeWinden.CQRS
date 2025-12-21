@@ -23,7 +23,9 @@ public static class DecoratorLocator
                 .Where(static i =>
                     typeof(ICQRSHandlerDecorator).IsAssignableFrom(i) &&
                     i != typeof(ICQRSHandlerDecorator) && i.IsGenericType && i.GetGenericTypeDefinition() != typeof(ICQRSHandlerDecorator<>)
-                );
+                )
+                .Distinct()
+                ;
 
             // Register each interface with the concrete type and specified lifetime
             foreach (var decoratorInterface in interfaces)

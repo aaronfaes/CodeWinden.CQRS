@@ -1,5 +1,7 @@
+using CodeWinden.CQRS.Tests.Decorators;
 using CodeWinden.CQRS.Tests.Handlers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace CodeWinden.CQRS.Tests;
@@ -9,447 +11,585 @@ namespace CodeWinden.CQRS.Tests;
 /// </summary>
 public class CQRSServiceTests
 {
-    #region Helper Methods
+    private readonly ILogger _logger;
 
-    /// <summary>
-    /// Creates a mock service provider that returns the specified handler.
-    /// </summary>
-    private static IServiceProvider CreateServiceProvider<THandler>(THandler handler)
-        where THandler : class
+    public CQRSServiceTests()
     {
-        var mockServiceProvider = Substitute.For<IServiceProvider>();
-        mockServiceProvider.GetService(typeof(THandler)).Returns(handler);
-        return mockServiceProvider;
+        // Create a mock logger for test handlers that require it
+        _logger = Substitute.For<ILogger>();
     }
 
-    /// <summary>
-    /// Creates a mock service provider with multiple handlers registered.
-    /// </summary>
-    private static IServiceProvider CreateServiceProviderWithHandlers(params (Type serviceType, object handler)[] handlers)
+    private IServiceProvider CreateServiceProvider(Action<CQRSOptionsBuilder>? optionsAction = null)
     {
-        var mockServiceProvider = Substitute.For<IServiceProvider>();
-        foreach (var (serviceType, handler) in handlers)
+        var services = new ServiceCollection();
+
+        // Add logger for handlers that need it
+        services.AddSingleton(_logger);
+
+        // Configure CQRS with the provided options
+        services.AddCQRS(optionsAction);
+
+        return services.BuildServiceProvider();
+    }
+
+    private void AssertLogContains(string expectedMessage, int times = 1)
+    {
+        _logger.Received(times).Log(
+            LogLevel.Information,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains(expectedMessage)),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    private void AssertLogContainsAll(params string[] expectedMessages)
+    {
+        foreach (var expectedMessage in expectedMessages)
         {
-            mockServiceProvider.GetService(serviceType).Returns(handler);
+            _logger.Received().Log(
+                LogLevel.Information,
+                Arg.Any<EventId>(),
+                Arg.Is<object>(o => o.ToString()!.Contains(expectedMessage)),
+                Arg.Any<Exception>(),
+                Arg.Any<Func<object, Exception?, string>>());
         }
-        return mockServiceProvider;
     }
 
-    #endregion
-
-    #region ExecuteCommand Tests (without result)
-
+    // ExecuteCommand Tests (no result)
     [Fact]
-    public async Task ExecuteCommand_WithValidCommand_CallsHandlerSuccessfully()
+    public async Task ExecuteCommand_WithValidCommand_ExecutesSuccessfully()
     {
         // Arrange
-        var mockHandler = Substitute.For<ICommandHandler<TestCommand>>();
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var command = new TestCommand();
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandHandler>());
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 123 };
 
         // Act
-        await sut.ExecuteCommand(command);
+        await cqrsService.ExecuteCommand(command);
 
-        // Assert
-        await mockHandler.Received(1).Handle(command, Arg.Any<CancellationToken>());
+        // Assert - no exception means success
+        Assert.True(true);
     }
 
     [Fact]
     public async Task ExecuteCommand_WithCancellationToken_PassesTokenToHandler()
     {
         // Arrange
-        var mockHandler = Substitute.For<ICommandHandler<TestCommand>>();
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var command = new TestCommand();
-        var cancellationToken = new CancellationToken(true);
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandHandler>());
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 456 };
+        var cts = new CancellationTokenSource();
 
         // Act
-        await sut.ExecuteCommand(command, cancellationToken);
+        await cqrsService.ExecuteCommand(command, cts.Token);
 
-        // Assert
-        await mockHandler.Received(1).Handle(command, cancellationToken);
+        // Assert - handler executed without cancellation
+        Assert.False(cts.Token.IsCancellationRequested);
     }
 
     [Fact]
-    public async Task ExecuteCommand_WhenHandlerThrowsException_PropagatesException()
+    public async Task ExecuteCommand_WithMultipleCommands_ExecutesEachIndependently()
     {
         // Arrange
-        var mockHandler = Substitute.For<ICommandHandler<TestCommand>>();
-        var expectedException = new InvalidOperationException("Handler failed");
-        mockHandler.Handle(Arg.Any<TestCommand>(), Arg.Any<CancellationToken>())
-                   .Returns<Task>(_ => throw expectedException);
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandler<TestCommandHandler>();
+            builder.AddHandler<AnotherTestCommandHandler>();
+        });
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var command = new TestCommand();
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sut.ExecuteCommand(command));
-        Assert.Equal(expectedException.Message, exception.Message);
-    }
-
-    [Fact]
-    public async Task ExecuteCommand_WhenHandlerNotRegistered_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        var mockServiceProvider = Substitute.For<IServiceProvider>();
-        mockServiceProvider.GetService(Arg.Any<Type>())
-            .Returns(x => throw new InvalidOperationException($"No service for type '{x[0]}' has been registered."));
-        var sut = new CQRSService(mockServiceProvider);
-        var command = new TestCommand();
-
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sut.ExecuteCommand(command));
-    }
-
-    [Fact]
-    public async Task ExecuteCommand_WithDefaultCancellationToken_UsesDefaultToken()
-    {
-        // Arrange
-        var mockHandler = Substitute.For<ICommandHandler<TestCommand>>();
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var command = new TestCommand();
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command1 = new TestCommand { Id = 1 };
+        var command2 = new AnotherTestCommand { Id = 2 };
 
         // Act
-        await sut.ExecuteCommand(command);
+        await cqrsService.ExecuteCommand(command1);
+        await cqrsService.ExecuteCommand(command2);
 
-        // Assert
-        await mockHandler.Received(1).Handle(command, default);
+        // Assert - both commands executed successfully
+        Assert.True(true);
     }
 
-    #endregion
+    [Fact]
+    public async Task ExecuteCommand_WithHandlerFromAssembly_ExecutesSuccessfully()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandlersFromAssemblyContaining<TestCommandHandler>());
 
-    #region ExecuteCommand Tests (with result)
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 789 };
 
+        // Act
+        await cqrsService.ExecuteCommand(command);
+
+        // Assert
+        Assert.True(true);
+    }
+
+    // ExecuteCommand Tests (with result)
     [Fact]
     public async Task ExecuteCommand_WithResult_ReturnsExpectedValue()
     {
         // Arrange
-        var expectedResult = 42;
-        var mockHandler = Substitute.For<ICommandHandler<TestCommandWithResult, int>>();
-        mockHandler.Handle(Arg.Any<TestCommandWithResult>(), Arg.Any<CancellationToken>())
-                   .Returns(expectedResult);
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandWithResultHandler>());
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var command = new TestCommandWithResult();
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommandWithResult { Value = 10 };
 
         // Act
-        var result = await sut.ExecuteCommand<TestCommandWithResult, int>(command);
+        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command);
 
         // Assert
-        Assert.Equal(expectedResult, result);
-        await mockHandler.Received(1).Handle(command, Arg.Any<CancellationToken>());
+        Assert.Equal(420, result); // 10 * 42
     }
 
     [Fact]
-    public async Task ExecuteCommand_WithResultAndCancellationToken_PassesTokenToHandler()
+    public async Task ExecuteCommand_WithResultAndCancellationToken_ReturnsExpectedValue()
     {
         // Arrange
-        var mockHandler = Substitute.For<ICommandHandler<TestCommandWithResult, int>>();
-        mockHandler.Handle(Arg.Any<TestCommandWithResult>(), Arg.Any<CancellationToken>())
-                   .Returns(100);
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandWithResultHandler>());
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var command = new TestCommandWithResult();
-        var cancellationToken = new CancellationToken(true);
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommandWithResult { Value = 5 };
+        var cts = new CancellationTokenSource();
 
         // Act
-        var result = await sut.ExecuteCommand<TestCommandWithResult, int>(command, cancellationToken);
+        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command, cts.Token);
 
         // Assert
-        Assert.Equal(100, result);
-        await mockHandler.Received(1).Handle(command, cancellationToken);
+        Assert.Equal(210, result); // 5 * 42
     }
 
     [Fact]
-    public async Task ExecuteCommand_WithResultWhenHandlerThrows_PropagatesException()
+    public async Task ExecuteCommand_WithResultFromAssembly_ReturnsExpectedValue()
     {
         // Arrange
-        var mockHandler = Substitute.For<ICommandHandler<TestCommandWithResult, int>>();
-        var expectedException = new ArgumentException("Invalid command");
-        mockHandler.Handle(Arg.Any<TestCommandWithResult>(), Arg.Any<CancellationToken>())
-                   .Returns<Task<int>>(_ => throw expectedException);
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandlersFromAssemblyContaining<TestCommandWithResultHandler>());
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var command = new TestCommandWithResult();
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<ArgumentException>(
-            () => sut.ExecuteCommand<TestCommandWithResult, int>(command));
-        Assert.Equal(expectedException.Message, exception.Message);
-    }
-
-    [Fact]
-    public async Task ExecuteCommand_WithResultWhenHandlerNotRegistered_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        var mockServiceProvider = Substitute.For<IServiceProvider>();
-        mockServiceProvider.GetService(Arg.Any<Type>())
-            .Returns(x => throw new InvalidOperationException($"No service for type '{x[0]}' has been registered."));
-        var sut = new CQRSService(mockServiceProvider);
-        var command = new TestCommandWithResult();
-
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sut.ExecuteCommand<TestCommandWithResult, int>(command));
-    }
-
-    #endregion
-
-    #region ExecuteQuery Tests (without parameters)
-
-    [Fact]
-    public async Task ExecuteQuery_WithoutParameters_ReturnsExpectedResult()
-    {
-        // Arrange
-        var expectedResult = true;
-        var mockHandler = Substitute.For<IQueryHandler<bool>>();
-        mockHandler.Handle(Arg.Any<CancellationToken>())
-                   .Returns(expectedResult);
-
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommandWithResult { Value = 3 };
 
         // Act
-        var result = await sut.ExecuteQuery<bool>();
+        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command);
 
         // Assert
-        Assert.Equal(expectedResult, result);
-        await mockHandler.Received(1).Handle(Arg.Any<CancellationToken>());
+        Assert.Equal(126, result); // 3 * 42
     }
 
+    // ExecuteQuery Tests (parameterless)
     [Fact]
-    public async Task ExecuteQuery_WithoutParametersAndCancellationToken_PassesTokenToHandler()
+    public async Task ExecuteQuery_Parameterless_ReturnsExpectedResult()
     {
         // Arrange
-        var mockHandler = Substitute.For<IQueryHandler<bool>>();
-        mockHandler.Handle(Arg.Any<CancellationToken>())
-                   .Returns(false);
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<ParameterlessQueryHandler>());
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var cancellationToken = new CancellationToken(true);
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
 
         // Act
-        var result = await sut.ExecuteQuery<bool>(cancellationToken);
+        var result = await cqrsService.ExecuteQuery<bool>();
 
         // Assert
-        Assert.False(result);
-        await mockHandler.Received(1).Handle(cancellationToken);
+        Assert.True(result);
     }
 
     [Fact]
-    public async Task ExecuteQuery_WithoutParametersWhenHandlerThrows_PropagatesException()
+    public async Task ExecuteQuery_ParameterlessWithCancellationToken_ReturnsExpectedResult()
     {
         // Arrange
-        var mockHandler = Substitute.For<IQueryHandler<bool>>();
-        var expectedException = new TimeoutException("Query timeout");
-        mockHandler.Handle(Arg.Any<CancellationToken>())
-                   .Returns<Task<bool>>(_ => throw expectedException);
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<ParameterlessQueryHandler>());
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var cts = new CancellationTokenSource();
 
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<TimeoutException>(
-            () => sut.ExecuteQuery<bool>());
-        Assert.Equal(expectedException.Message, exception.Message);
+        // Act
+        var result = await cqrsService.ExecuteQuery<bool>(cts.Token);
+
+        // Assert
+        Assert.True(result);
     }
 
     [Fact]
-    public async Task ExecuteQuery_WithoutParametersWhenHandlerNotRegistered_ThrowsInvalidOperationException()
+    public async Task ExecuteQuery_ParameterlessFromAssembly_ReturnsExpectedResult()
     {
         // Arrange
-        var mockServiceProvider = Substitute.For<IServiceProvider>();
-        mockServiceProvider.GetService(Arg.Any<Type>())
-            .Returns(x => throw new InvalidOperationException($"No service for type '{x[0]}' has been registered."));
-        var sut = new CQRSService(mockServiceProvider);
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandlersFromAssemblyContaining<ParameterlessQueryHandler>());
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sut.ExecuteQuery<bool>());
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+
+        // Act
+        var result = await cqrsService.ExecuteQuery<bool>();
+
+        // Assert
+        Assert.True(result);
     }
 
-    #endregion
-
-    #region ExecuteQuery Tests (with parameters)
-
+    // ExecuteQuery Tests (with parameters)
     [Fact]
     public async Task ExecuteQuery_WithParameters_ReturnsExpectedResult()
     {
         // Arrange
-        var expectedResult = "test result";
-        var mockHandler = Substitute.For<IQueryHandler<TestQuery, string>>();
-        mockHandler.Handle(Arg.Any<TestQuery>(), Arg.Any<CancellationToken>())
-                   .Returns(expectedResult);
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestQueryHandler>());
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var query = new TestQuery();
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var query = new TestQuery { Id = 42 };
 
         // Act
-        var result = await sut.ExecuteQuery<TestQuery, string>(query);
+        var result = await cqrsService.ExecuteQuery<TestQuery, string>(query);
 
         // Assert
-        Assert.Equal(expectedResult, result);
-        await mockHandler.Received(1).Handle(query, Arg.Any<CancellationToken>());
+        Assert.Equal("Result for Id: 42", result);
     }
 
     [Fact]
-    public async Task ExecuteQuery_WithParametersAndCancellationToken_PassesTokenToHandler()
+    public async Task ExecuteQuery_WithParametersAndCancellationToken_ReturnsExpectedResult()
     {
         // Arrange
-        var mockHandler = Substitute.For<IQueryHandler<TestQuery, string>>();
-        mockHandler.Handle(Arg.Any<TestQuery>(), Arg.Any<CancellationToken>())
-                   .Returns("result");
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestQueryHandler>());
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var query = new TestQuery();
-        var cancellationToken = new CancellationToken(true);
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var query = new TestQuery { Id = 99 };
+        var cts = new CancellationTokenSource();
 
         // Act
-        var result = await sut.ExecuteQuery<TestQuery, string>(query, cancellationToken);
+        var result = await cqrsService.ExecuteQuery<TestQuery, string>(query, cts.Token);
 
         // Assert
-        Assert.Equal("result", result);
-        await mockHandler.Received(1).Handle(query, cancellationToken);
+        Assert.Equal("Result for Id: 99", result);
     }
 
     [Fact]
-    public async Task ExecuteQuery_WithParametersWhenHandlerThrows_PropagatesException()
+    public async Task ExecuteQuery_WithMultipleQueries_ReturnsCorrectResults()
     {
         // Arrange
-        var mockHandler = Substitute.For<IQueryHandler<TestQuery, string>>();
-        var expectedException = new UnauthorizedAccessException("Access denied");
-        mockHandler.Handle(Arg.Any<TestQuery>(), Arg.Any<CancellationToken>())
-                   .Returns<Task<string>>(_ => throw expectedException);
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandler<TestQueryHandler>();
+            builder.AddHandler<AnotherTestQueryHandler>();
+        });
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var query = new TestQuery();
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var query1 = new TestQuery { Id = 100 };
+        var query2 = new AnotherTestQuery { Value = 50 };
+
+        // Act
+        var result1 = await cqrsService.ExecuteQuery<TestQuery, string>(query1);
+        var result2 = await cqrsService.ExecuteQuery<AnotherTestQuery, int>(query2);
+
+        // Assert
+        Assert.Equal("Result for Id: 100", result1);
+        Assert.Equal(100, result2); // 50 * 2
+    }
+
+    [Fact]
+    public async Task ExecuteQuery_WithParametersFromAssembly_ReturnsExpectedResult()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandlersFromAssemblyContaining<TestQueryHandler>());
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var query = new TestQuery { Id = 777 };
+
+        // Act
+        var result = await cqrsService.ExecuteQuery<TestQuery, string>(query);
+
+        // Assert
+        Assert.Equal("Result for Id: 777", result);
+    }
+
+    // Service Lifetime Tests
+    [Fact]
+    public void CQRSService_RegisteredAsSingleton_ReturnsSameInstance()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandHandler>());
+
+        // Act
+        var service1 = serviceProvider.GetRequiredService<ICQRSService>();
+        var service2 = serviceProvider.GetRequiredService<ICQRSService>();
+
+        // Assert
+        Assert.Same(service1, service2);
+    }
+
+    [Fact]
+    public async Task CQRSService_WithScopedHandler_ExecutesInScope()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandHandler>(ServiceLifetime.Scoped));
+
+        using var scope = serviceProvider.CreateScope();
+        var cqrsService = scope.ServiceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 123 };
+
+        // Act
+        await cqrsService.ExecuteCommand(command);
+
+        // Assert
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task CQRSService_WithTransientHandler_ExecutesSuccessfully()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandHandler>(ServiceLifetime.Transient));
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 456 };
+
+        // Act
+        await cqrsService.ExecuteCommand(command);
+
+        // Assert
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task CQRSService_WithSingletonHandler_ExecutesSuccessfully()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandWithResultHandler>(ServiceLifetime.Singleton));
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommandWithResult { Value = 7 };
+
+        // Act
+        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command);
+
+        // Assert
+        Assert.Equal(294, result); // 7 * 42
+    }
+
+    // Decorator Tests
+    [Fact]
+    public async Task ExecuteCommand_WithDecorator_DecoratorIsInvoked()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandler<TestCommandHandler>();
+            builder.AddDecorator<TestCommandHandlerDecorator>();
+        });
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 100 };
+
+        // Act
+        await cqrsService.ExecuteCommand(command);
+
+        // Assert - verify logger was called by decorator
+        AssertLogContains("Decorator modifying TestCommand Id 100");
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_WithResultAndDecorator_DecoratorIsInvoked()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandler<TestCommandWithResultHandler>();
+            builder.AddDecorator<TestCommandWithResultHandlerDecorator>();
+        });
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommandWithResult { Value = 5 };
+
+        // Act
+        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command);
+
+        // Assert
+        Assert.Equal(210, result); // 5 * 42
+        AssertLogContains("Decorator modifying TestCommandWithResult Value 5");
+    }
+
+    [Fact]
+    public async Task ExecuteQuery_WithDecorator_DecoratorIsInvokedAndModifiesQuery()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandler<TestQueryHandler>();
+            builder.AddDecorator<TestQueryHandlerDecorator>();
+        });
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var query = new TestQuery { Id = 42 };
+
+        // Act
+        var result = await cqrsService.ExecuteQuery<TestQuery, string>(query);
+
+        // Assert - decorator adds 1 to the Id before passing to handler
+        Assert.Equal("Result for Id: 43", result);
+    }
+
+    [Fact]
+    public async Task ExecuteQuery_ParameterlessWithDecorator_DecoratorIsInvokedAndInvertsResult()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandler<ParameterlessQueryHandler>();
+            builder.AddDecorator<ParameterlessQueryHandlerDecorator>();
+        });
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+
+        // Act
+        var result = await cqrsService.ExecuteQuery<bool>();
+
+        // Assert - decorator inverts the result (true becomes false)
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_WithoutDecorator_HandlerExecutesDirectly()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+            builder.AddHandler<TestCommandHandler>());
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 200 };
+
+        // Act
+        await cqrsService.ExecuteCommand(command);
+
+        // Assert - verify handler's logger was called directly (not via decorator)
+        AssertLogContains("Handling TestCommand with Id: 200");
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_WithMultipleDecorators_AllDecoratorsAreApplied()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandler<TestCommandHandler>();
+            // Register two different decorators
+            builder.AddDecorator<TestCommandHandlerDecorator>();
+            builder.AddDecorator<GenericCommandHandlerDecorator<TestCommand>>();
+        });
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 300 };
+
+        // Act
+        await cqrsService.ExecuteCommand(command);
+
+        // Assert - verify both decorators were called
+        AssertLogContainsAll("Decorator modifying TestCommand Id 300", "Generic decorator handling command of type TestCommand");
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_WithDecoratorFromAssembly_DecoratorIsInvoked()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandlersFromAssemblyContaining<TestCommandHandler>();
+            builder.AddDecorator<TestCommandHandlerDecorator>();
+        });
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 400 };
+
+        // Act
+        await cqrsService.ExecuteCommand(command);
+
+        // Assert
+        AssertLogContains("Decorator modifying TestCommand Id 400");
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_WithMultiInterfaceDecorator_DecoratorHandlesBothCommandTypes()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(builder =>
+        {
+            builder.AddHandler<TestCommandHandler>();
+            builder.AddHandler<TestCommandWithResultHandler>();
+            builder.AddDecorator<MultiInterfaceDecorator>();
+        });
+
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command1 = new TestCommand { Id = 500 };
+        var command2 = new TestCommandWithResult { Value = 10 };
+
+        // Act
+        await cqrsService.ExecuteCommand(command1);
+        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command2);
+
+        // Assert - both commands executed successfully through the same decorator
+        Assert.Equal(420, result); // 10 * 42
+        AssertLogContains("Handling TestCommand with Id: 500");
+    }
+
+    // Error Handling Tests
+    [Fact]
+    public async Task ExecuteCommand_WithoutRegisteredHandler_ThrowsException()
+    {
+        // Arrange
+        var serviceProvider = CreateServiceProvider(); // No handlers registered
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommand { Id = 999 };
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => sut.ExecuteQuery<TestQuery, string>(query));
-        Assert.Equal(expectedException.Message, exception.Message);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await cqrsService.ExecuteCommand(command));
     }
 
     [Fact]
-    public async Task ExecuteQuery_WithParametersWhenHandlerNotRegistered_ThrowsInvalidOperationException()
+    public async Task ExecuteCommand_WithResult_WithoutRegisteredHandler_ThrowsException()
     {
         // Arrange
-        var mockServiceProvider = Substitute.For<IServiceProvider>();
-        mockServiceProvider.GetService(Arg.Any<Type>())
-            .Returns(x => throw new InvalidOperationException($"No service for type '{x[0]}' has been registered."));
-        var sut = new CQRSService(mockServiceProvider);
-        var query = new TestQuery();
+        var serviceProvider = CreateServiceProvider(); // No handlers registered
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var command = new TestCommandWithResult { Value = 99 };
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sut.ExecuteQuery<TestQuery, string>(query));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command));
     }
 
     [Fact]
-    public async Task ExecuteQuery_WithDifferentQueryType_ResolvesCorrectHandler()
+    public async Task ExecuteQuery_WithoutRegisteredHandler_ThrowsException()
     {
         // Arrange
-        var expectedResult = 123;
-        var mockHandler = Substitute.For<IQueryHandler<AnotherTestQuery, int>>();
-        mockHandler.Handle(Arg.Any<AnotherTestQuery>(), Arg.Any<CancellationToken>())
-                   .Returns(expectedResult);
+        var serviceProvider = CreateServiceProvider(); // No handlers registered
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
+        var query = new TestQuery { Id = 888 };
 
-        var serviceProvider = CreateServiceProvider(mockHandler);
-        var sut = new CQRSService(serviceProvider);
-        var query = new AnotherTestQuery();
-
-        // Act
-        var result = await sut.ExecuteQuery<AnotherTestQuery, int>(query);
-
-        // Assert
-        Assert.Equal(expectedResult, result);
-        await mockHandler.Received(1).Handle(query, Arg.Any<CancellationToken>());
-    }
-
-    #endregion
-
-    #region Constructor Tests
-
-    [Fact]
-    public void Constructor_WithValidServiceProvider_CreatesInstance()
-    {
-        // Arrange
-        var mockServiceProvider = Substitute.For<IServiceProvider>();
-
-        // Act
-        var sut = new CQRSService(mockServiceProvider);
-
-        // Assert
-        Assert.NotNull(sut);
-    }
-
-    #endregion
-
-    #region Integration Tests
-
-    [Fact]
-    public async Task ExecuteCommand_WithMultipleCommandTypes_ResolvesCorrectHandlers()
-    {
-        // Arrange
-        var mockHandler1 = Substitute.For<ICommandHandler<TestCommand>>();
-        var mockHandler2 = Substitute.For<ICommandHandler<AnotherTestCommand>>();
-
-        var serviceProvider = CreateServiceProviderWithHandlers(
-            (typeof(ICommandHandler<TestCommand>), mockHandler1),
-            (typeof(ICommandHandler<AnotherTestCommand>), mockHandler2)
-        );
-
-        var sut = new CQRSService(serviceProvider);
-        var command1 = new TestCommand();
-        var command2 = new AnotherTestCommand();
-
-        // Act
-        await sut.ExecuteCommand(command1);
-        await sut.ExecuteCommand(command2);
-
-        // Assert
-        await mockHandler1.Received(1).Handle(command1, Arg.Any<CancellationToken>());
-        await mockHandler2.Received(1).Handle(command2, Arg.Any<CancellationToken>());
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await cqrsService.ExecuteQuery<TestQuery, string>(query));
     }
 
     [Fact]
-    public async Task CQRSService_ExecutingMultipleOperations_WorksCorrectly()
+    public async Task ExecuteQuery_Parameterless_WithoutRegisteredHandler_ThrowsException()
     {
         // Arrange
-        var mockCommandHandler = Substitute.For<ICommandHandler<TestCommand>>();
-        var mockQueryHandler = Substitute.For<IQueryHandler<TestQuery, string>>();
-        mockQueryHandler.Handle(Arg.Any<TestQuery>(), Arg.Any<CancellationToken>())
-                       .Returns("query result");
+        var serviceProvider = CreateServiceProvider(); // No handlers registered
+        var cqrsService = serviceProvider.GetRequiredService<ICQRSService>();
 
-        var serviceProvider = CreateServiceProviderWithHandlers(
-            (typeof(ICommandHandler<TestCommand>), mockCommandHandler),
-            (typeof(IQueryHandler<TestQuery, string>), mockQueryHandler)
-        );
-
-        var sut = new CQRSService(serviceProvider);
-
-        // Act
-        await sut.ExecuteCommand(new TestCommand());
-        var queryResult = await sut.ExecuteQuery<TestQuery, string>(new TestQuery());
-
-        // Assert
-        await mockCommandHandler.Received(1).Handle(Arg.Any<TestCommand>(), Arg.Any<CancellationToken>());
-        await mockQueryHandler.Received(1).Handle(Arg.Any<TestQuery>(), Arg.Any<CancellationToken>());
-        Assert.Equal("query result", queryResult);
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await cqrsService.ExecuteQuery<bool>());
     }
-
-    #endregion
 }

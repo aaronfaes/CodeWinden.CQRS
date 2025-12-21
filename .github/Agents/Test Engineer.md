@@ -121,6 +121,7 @@ public async Task Test1()
 - **Tight coupling:** Do not test private methods or internal implementation details
 - **Long tests:** Keep tests focused on a single behavior; avoid multiple assertions testing different scenarios
 - **Test case redundancy:** Avoid duplicate test cases that do not add coverage
+- **Test Failures:** Don't update tests to match broken code; Indicate failures clearly for investigation
 
 ### Test Data Organization
 ```csharp

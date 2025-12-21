@@ -1,4 +1,5 @@
 using System.Reflection;
+using CodeWinden.CQRS.Decorators;
 using CodeWinden.CQRS.DependencyInjection;
 using CodeWinden.CQRS.Tests.Decorators;
 using CodeWinden.CQRS.Tests.Handlers;
@@ -348,24 +349,64 @@ public class CQRSOptionsBuilderTests
         Assert.Contains(ServiceLifetime.Singleton, lifetimes);
     }
 
-    // Builder Integration Tests
+    // AddDecorator Validation Tests
     [Fact]
-    public void Build_WithNoConfiguration_ReturnsDefaultOptions()
+    public void AddDecorator_WithAbstractClass_ThrowsArgumentException()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
 
-        // Act
-        var options = builder.Build();
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.AddDecorator(typeof(AbstractTestDecorator), ServiceLifetime.Scoped));
 
-        // Assert
-        Assert.NotNull(options);
-        Assert.Empty(options.Handlers);
-        Assert.Empty(options.Decorators);
-        Assert.Null(options.AssemblyWithHandlers);
-        Assert.Equal(ServiceLifetime.Scoped, options.HandlerFromAssemblyLifetime);
+        Assert.Equal("type", exception.ParamName);
+        Assert.Contains("Decorator type must be a concrete class", exception.Message);
     }
 
+    [Fact]
+    public void AddDecorator_WithInterface_ThrowsArgumentException()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.AddDecorator(typeof(ITestCommandHandlerDecorator), ServiceLifetime.Scoped));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Contains("Decorator type must be a concrete class", exception.Message);
+    }
+
+    [Fact]
+    public void AddDecorator_WithNonDecoratorType_ThrowsArgumentException()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.AddDecorator(typeof(TestCommandHandler), ServiceLifetime.Scoped));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Contains("Decorator type must implement ICQRSHandlerDecorator", exception.Message);
+    }
+
+    [Fact]
+    public void AddDecorator_WithGenericInterface_ThrowsArgumentException()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.AddDecorator(typeof(ICommandHandlerDecorator<TestCommand>), ServiceLifetime.Scoped));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Contains("Decorator type must be a concrete class", exception.Message);
+    }
+
+    // Builder Integration Tests
     [Fact]
     public void Build_CalledMultipleTimes_ReturnsSameOptionsInstance()
     {

@@ -20,10 +20,10 @@ public static class DependencyInjectionRegistrar
         // Locate all decorators
         var decorators = DecoratorLocator.LocateDecorators(options);
 
-        // Loop over all decorators and register them
+        // Loop over all decorators and register them (use Add to allow multiple decorators of same type)
         foreach (var decorator in decorators)
         {
-            services.TryAdd(decorator);
+            services.Add(decorator);
         }
 
         // Locate all handlers

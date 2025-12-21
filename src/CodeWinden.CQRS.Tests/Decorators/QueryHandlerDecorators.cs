@@ -1,28 +1,38 @@
 namespace CodeWinden.CQRS.Tests.Decorators;
 
+using CodeWinden.CQRS;
 using CodeWinden.CQRS.Decorators;
 using CodeWinden.CQRS.Tests.Handlers;
 
-public class TestQueryHandlerDecorator : ICQRSQueryHandlerDecorator<TestQuery, string>
+public class TestQueryHandlerDecorator :
+    BaseDecorator<IQueryHandler<TestQuery, string>>,
+    IQueryHandlerDecorator<TestQuery, string>
 {
     public Task<string> Handle(TestQuery query, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        return _handler.Handle(new TestQuery
+        {
+            Id = query.Id + 1
+        }, cancellationToken);
     }
 }
 
-public class ParameterlessQueryHandlerDecorator : ICQRSQueryHandlerDecorator<bool>
+public class ParameterlessQueryHandlerDecorator :
+    BaseDecorator<IQueryHandler<bool>>,
+    IQueryHandlerDecorator<bool>
 {
-    public Task<bool> Handle(CancellationToken cancellationToken = default)
+    public async Task<bool> Handle(CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        return !await _handler.Handle(cancellationToken);
     }
 }
 
-public class GenericTestQueryHandlerDecorator<TResult> : ICQRSQueryHandlerDecorator<TResult>
+public class GenericTestQueryHandlerDecorator<TResult> :
+    BaseDecorator<IQueryHandler<TResult>>,
+    IQueryHandlerDecorator<TResult>
 {
     public Task<TResult> Handle(CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        return _handler.Handle(cancellationToken);
     }
 }

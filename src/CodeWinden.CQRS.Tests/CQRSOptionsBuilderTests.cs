@@ -1,9 +1,15 @@
 using System.Reflection;
+using CodeWinden.CQRS.Decorators;
+using CodeWinden.CQRS.DependencyInjection;
+using CodeWinden.CQRS.Tests.Decorators;
 using CodeWinden.CQRS.Tests.Handlers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS.Tests;
 
+/// <summary>
+/// Unit tests for the CQRSOptionsBuilder class.
+/// </summary>
 public class CQRSOptionsBuilderTests
 {
     [Fact]
@@ -14,13 +20,15 @@ public class CQRSOptionsBuilderTests
 
         // Assert
         Assert.Null(options.AssemblyWithHandlers);
-        Assert.NotNull(options.HandlerTypes);
-        Assert.Empty(options.HandlerTypes);
-        Assert.Equal(ServiceLifetime.Scoped, options.HandlerLifetime);
+        Assert.NotNull(options.Handlers);
+        Assert.Empty(options.Handlers);
+        Assert.NotNull(options.Decorators);
+        Assert.Empty(options.Decorators);
+        Assert.Equal(ServiceLifetime.Scoped, options.HandlerFromAssemblyLifetime);
     }
 
     [Fact]
-    public void CQRSOptions_AssemblyWithHandlers_CanBeSetDirectly()
+    public void CQRSOptions_PropertiesCanBeSetDirectly()
     {
         // Arrange
         var options = new CQRSOptions();
@@ -28,70 +36,44 @@ public class CQRSOptionsBuilderTests
 
         // Act
         options.AssemblyWithHandlers = assembly;
+        options.HandlerFromAssemblyLifetime = ServiceLifetime.Singleton;
 
         // Assert
         Assert.Equal(assembly, options.AssemblyWithHandlers);
-    }
-
-    [Fact]
-    public void CQRSOptions_HandlerLifetime_CanBeSetDirectly()
-    {
-        // Arrange
-        var options = new CQRSOptions();
-
-        // Act
-        options.HandlerLifetime = ServiceLifetime.Singleton;
-
-        // Assert
-        Assert.Equal(ServiceLifetime.Singleton, options.HandlerLifetime);
-    }
-
-    [Fact]
-    public void CQRSOptions_RecordEquality_ComparesValueEquality()
-    {
-        // Arrange
-        var assembly = typeof(TestCommandHandler).Assembly;
-        var options1 = new CQRSOptions
-        {
-            AssemblyWithHandlers = assembly,
-            HandlerLifetime = ServiceLifetime.Singleton
-        };
-        options1.HandlerTypes.Add(typeof(TestCommandHandler));
-
-        var options2 = new CQRSOptions
-        {
-            AssemblyWithHandlers = assembly,
-            HandlerLifetime = ServiceLifetime.Singleton
-        };
-        options2.HandlerTypes.Add(typeof(TestCommandHandler));
-
-        // Act & Assert
-        // Note: Records compare by reference for reference-type properties
-        Assert.NotEqual(options1, options2); // Different HandlerTypes collection instances
+        Assert.Equal(ServiceLifetime.Singleton, options.HandlerFromAssemblyLifetime);
     }
 
     [Fact]
     public void CQRSOptions_WithExpression_CreatesModifiedCopy()
     {
         // Arrange
-        var originalOptions = new CQRSOptions
-        {
-            HandlerLifetime = ServiceLifetime.Scoped
-        };
+        var originalOptions = new CQRSOptions { HandlerFromAssemblyLifetime = ServiceLifetime.Scoped };
 
         // Act
-        var modifiedOptions = originalOptions with
-        {
-            HandlerLifetime = ServiceLifetime.Singleton
-        };
+        var modifiedOptions = originalOptions with { HandlerFromAssemblyLifetime = ServiceLifetime.Singleton };
 
         // Assert
-        Assert.Equal(ServiceLifetime.Scoped, originalOptions.HandlerLifetime);
-        Assert.Equal(ServiceLifetime.Singleton, modifiedOptions.HandlerLifetime);
+        Assert.Equal(ServiceLifetime.Scoped, originalOptions.HandlerFromAssemblyLifetime);
+        Assert.Equal(ServiceLifetime.Singleton, modifiedOptions.HandlerFromAssemblyLifetime);
     }
 
     [Fact]
-    public void AddHandler_WithGenericType_AddsHandlerTypeToCollection()
+    public void CQRSOptions_CollectionsAreModifiable()
+    {
+        // Arrange
+        var options = new CQRSOptions();
+
+        // Act & Assert
+        options.Handlers.Add(new DependencyInjectionConfiguration { Type = typeof(TestCommandHandler), Lifetime = ServiceLifetime.Scoped });
+        Assert.Single(options.Handlers);
+
+        options.Decorators.Add(new DependencyInjectionConfiguration { Type = typeof(TestCommandHandlerDecorator), Lifetime = ServiceLifetime.Scoped });
+        Assert.Single(options.Decorators);
+    }
+
+    // AddHandler Tests
+    [Fact]
+    public void AddHandler_WithGenericType_AddsHandlerWithDefaultLifetime()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
@@ -101,129 +83,98 @@ public class CQRSOptionsBuilderTests
 
         // Assert
         var options = result.Build();
-        Assert.Single(options.HandlerTypes);
-        Assert.Contains(typeof(TestCommandHandler), options.HandlerTypes);
-    }
-
-    [Fact]
-    public void AddHandler_WithGenericType_ReturnsBuilderForChaining()
-    {
-        // Arrange
-        var builder = new CQRSOptionsBuilder();
-
-        // Act
-        var result = builder.AddHandler<TestCommandHandler>();
-
-        // Assert
-        Assert.IsType<CQRSOptionsBuilder>(result);
         Assert.Same(builder, result);
+        Assert.Single(options.Handlers);
+        var handler = options.Handlers.First();
+        Assert.Equal(typeof(TestCommandHandler), handler.Type);
+        Assert.Equal(ServiceLifetime.Scoped, handler.Lifetime);
     }
 
     [Fact]
-    public void AddHandler_WithType_AddsHandlerTypeToCollection()
+    public void AddHandler_WithType_AddsHandlerWithCustomLifetime()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
         var handlerType = typeof(TestCommandHandler);
 
         // Act
-        var result = builder.AddHandler(handlerType);
+        var result = builder.AddHandler(handlerType, ServiceLifetime.Transient);
 
         // Assert
         var options = result.Build();
-        Assert.Single(options.HandlerTypes);
-        Assert.Contains(handlerType, options.HandlerTypes);
+        Assert.Same(builder, result);
+        Assert.Single(options.Handlers);
+        var handler = options.Handlers.First();
+        Assert.Equal(handlerType, handler.Type);
+        Assert.Equal(ServiceLifetime.Transient, handler.Lifetime);
     }
 
-    [Fact]
-    public void AddHandler_WithType_ReturnsBuilderForChaining()
+    [Theory]
+    [InlineData(ServiceLifetime.Singleton)]
+    [InlineData(ServiceLifetime.Scoped)]
+    [InlineData(ServiceLifetime.Transient)]
+    public void AddHandler_WithAllLifetimes_AddsHandlerWithCorrectLifetime(ServiceLifetime lifetime)
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
-        var handlerType = typeof(TestCommandHandler);
 
         // Act
-        var result = builder.AddHandler(handlerType);
+        var result = builder.AddHandler<TestCommandHandler>(lifetime);
 
         // Assert
-        Assert.IsType<CQRSOptionsBuilder>(result);
-        Assert.Same(builder, result);
+        var options = result.Build();
+        var handler = options.Handlers.First();
+        Assert.Equal(lifetime, handler.Lifetime);
     }
 
     [Fact]
-    public void AddHandler_WithMultipleTypes_AddsAllHandlerTypesToCollection()
+    public void AddHandler_WithMultipleTypes_AddsAllHandlersWithDifferentLifetimes()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
 
         // Act
         builder.AddHandler<TestCommandHandler>()
-               .AddHandler<TestCommandWithResultHandler>()
-               .AddHandler<AnotherTestCommandHandler>();
+               .AddHandler<TestCommandWithResultHandler>(ServiceLifetime.Singleton)
+               .AddHandler<AnotherTestCommandHandler>(ServiceLifetime.Transient);
 
         // Assert
         var options = builder.Build();
-        Assert.Equal(3, options.HandlerTypes.Count);
-        Assert.Contains(typeof(TestCommandHandler), options.HandlerTypes);
-        Assert.Contains(typeof(TestCommandWithResultHandler), options.HandlerTypes);
-        Assert.Contains(typeof(AnotherTestCommandHandler), options.HandlerTypes);
+        Assert.Equal(3, options.Handlers.Count);
+
+        var handlerTypes = options.Handlers.Select(h => h.Type).ToList();
+        Assert.Contains(typeof(TestCommandHandler), handlerTypes);
+        Assert.Contains(typeof(TestCommandWithResultHandler), handlerTypes);
+        Assert.Contains(typeof(AnotherTestCommandHandler), handlerTypes);
+
+        Assert.Contains(options.Handlers, h => h.Type == typeof(TestCommandHandler) && h.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(options.Handlers, h => h.Type == typeof(TestCommandWithResultHandler) && h.Lifetime == ServiceLifetime.Singleton);
+        Assert.Contains(options.Handlers, h => h.Type == typeof(AnotherTestCommandHandler) && h.Lifetime == ServiceLifetime.Transient);
     }
 
     [Fact]
-    public void AddHandler_WithSpan_AddsAllHandlerTypesToCollection()
+    public void AddHandler_WithDuplicateTypes_AddsBothInstancesWithDifferentLifetimes()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
-        ReadOnlySpan<Type> handlerTypes = new[]
-        {
-            typeof(TestCommandHandler),
-            typeof(TestCommandWithResultHandler),
-            typeof(AnotherTestCommandHandler)
-        };
 
         // Act
-        var result = builder.AddHandler(handlerTypes);
+        builder.AddHandler<TestCommandHandler>(ServiceLifetime.Scoped)
+               .AddHandler<TestCommandHandler>(ServiceLifetime.Singleton);
 
         // Assert
-        var options = result.Build();
-        Assert.Equal(3, options.HandlerTypes.Count);
-        Assert.Contains(typeof(TestCommandHandler), options.HandlerTypes);
-        Assert.Contains(typeof(TestCommandWithResultHandler), options.HandlerTypes);
-        Assert.Contains(typeof(AnotherTestCommandHandler), options.HandlerTypes);
+        var options = builder.Build();
+        Assert.Equal(2, options.Handlers.Count);
+        Assert.All(options.Handlers, handler => Assert.Equal(typeof(TestCommandHandler), handler.Type));
+
+        var lifetimes = options.Handlers.Select(h => h.Lifetime).ToList();
+        Assert.Contains(ServiceLifetime.Scoped, lifetimes);
+        Assert.Contains(ServiceLifetime.Singleton, lifetimes);
     }
 
+    // AddHandlersFromAssemblyContaining Tests
     [Fact]
-    public void AddHandler_WithSpan_ReturnsBuilderForChaining()
-    {
-        // Arrange
-        var builder = new CQRSOptionsBuilder();
-        ReadOnlySpan<Type> handlerTypes = new[] { typeof(TestCommandHandler) };
-
-        // Act
-        var result = builder.AddHandler(handlerTypes);
-
-        // Assert
-        Assert.IsType<CQRSOptionsBuilder>(result);
-        Assert.Same(builder, result);
-    }
-
-    [Fact]
-    public void AddHandler_WithEmptySpan_DoesNotAddAnyHandlers()
-    {
-        // Arrange
-        var builder = new CQRSOptionsBuilder();
-        ReadOnlySpan<Type> handlerTypes = Array.Empty<Type>();
-
-        // Act
-        var result = builder.AddHandler(handlerTypes);
-
-        // Assert
-        var options = result.Build();
-        Assert.Empty(options.HandlerTypes);
-    }
-
-    [Fact]
-    public void AddHandlersFromAssemblyContaining_WithGenericType_SetsAssembly()
+    public void AddHandlersFromAssemblyContaining_WithGenericType_SetsAssemblyWithDefaultLifetime()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
@@ -234,55 +185,30 @@ public class CQRSOptionsBuilderTests
 
         // Assert
         var options = result.Build();
-        Assert.Equal(expectedAssembly, options.AssemblyWithHandlers);
-    }
-
-    [Fact]
-    public void AddHandlersFromAssemblyContaining_WithGenericType_ReturnsBuilderForChaining()
-    {
-        // Arrange
-        var builder = new CQRSOptionsBuilder();
-
-        // Act
-        var result = builder.AddHandlersFromAssemblyContaining<TestCommandHandler>();
-
-        // Assert
-        Assert.IsType<CQRSOptionsBuilder>(result);
         Assert.Same(builder, result);
+        Assert.Equal(expectedAssembly, options.AssemblyWithHandlers);
+        Assert.Equal(ServiceLifetime.Scoped, options.HandlerFromAssemblyLifetime);
     }
 
     [Fact]
-    public void AddHandlersFromAssemblyContaining_WithAssembly_SetsAssembly()
+    public void AddHandlersFromAssemblyContaining_WithAssembly_SetsAssemblyWithCustomLifetime()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
         var assembly = Assembly.GetExecutingAssembly();
 
         // Act
-        var result = builder.AddHandlersFromAssemblyContaining(assembly);
+        var result = builder.AddHandlersFromAssemblyContaining(assembly, ServiceLifetime.Transient);
 
         // Assert
         var options = result.Build();
-        Assert.Equal(assembly, options.AssemblyWithHandlers);
-    }
-
-    [Fact]
-    public void AddHandlersFromAssemblyContaining_WithAssembly_ReturnsBuilderForChaining()
-    {
-        // Arrange
-        var builder = new CQRSOptionsBuilder();
-        var assembly = Assembly.GetExecutingAssembly();
-
-        // Act
-        var result = builder.AddHandlersFromAssemblyContaining(assembly);
-
-        // Assert
-        Assert.IsType<CQRSOptionsBuilder>(result);
         Assert.Same(builder, result);
+        Assert.Equal(assembly, options.AssemblyWithHandlers);
+        Assert.Equal(ServiceLifetime.Transient, options.HandlerFromAssemblyLifetime);
     }
 
     [Fact]
-    public void AddHandlersFromAssemblyContaining_CalledMultipleTimes_OverridesAssembly()
+    public void AddHandlersFromAssemblyContaining_CalledMultipleTimes_OverridesAssemblyAndLifetime()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
@@ -290,112 +216,269 @@ public class CQRSOptionsBuilderTests
         var secondAssembly = typeof(string).Assembly;
 
         // Act
-        builder.AddHandlersFromAssemblyContaining(firstAssembly);
-        builder.AddHandlersFromAssemblyContaining(secondAssembly);
+        builder.AddHandlersFromAssemblyContaining(firstAssembly, ServiceLifetime.Singleton);
+        builder.AddHandlersFromAssemblyContaining(secondAssembly, ServiceLifetime.Transient);
 
         // Assert
         var options = builder.Build();
         Assert.Equal(secondAssembly, options.AssemblyWithHandlers);
+        Assert.Equal(ServiceLifetime.Transient, options.HandlerFromAssemblyLifetime);
     }
 
+    // AddDecorator Tests
     [Fact]
-    public void WithHandlerLifetime_SetsLifetime()
+    public void AddDecorator_WithGenericType_AddsDecoratorWithDefaultLifetime()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
 
         // Act
-        var result = builder.WithHandlerLifetime(ServiceLifetime.Singleton);
+        var result = builder.AddDecorator<TestCommandHandlerDecorator>();
 
         // Assert
         var options = result.Build();
-        Assert.Equal(ServiceLifetime.Singleton, options.HandlerLifetime);
+        Assert.Same(builder, result);
+        Assert.Single(options.Decorators);
+        var decorator = options.Decorators.First();
+        Assert.Equal(typeof(TestCommandHandlerDecorator), decorator.Type);
+        Assert.Equal(ServiceLifetime.Scoped, decorator.Lifetime);
     }
 
     [Fact]
-    public void WithHandlerLifetime_ReturnsBuilderForChaining()
+    public void AddDecorator_WithType_AddsDecoratorWithCustomLifetime()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
+        var decoratorType = typeof(TestQueryHandlerDecorator);
 
         // Act
-        var result = builder.WithHandlerLifetime(ServiceLifetime.Transient);
+        var result = builder.AddDecorator(decoratorType, ServiceLifetime.Transient);
 
         // Assert
-        Assert.IsType<CQRSOptionsBuilder>(result);
+        var options = result.Build();
         Assert.Same(builder, result);
+        Assert.Single(options.Decorators);
+        var decorator = options.Decorators.First();
+        Assert.Equal(decoratorType, decorator.Type);
+        Assert.Equal(ServiceLifetime.Transient, decorator.Lifetime);
     }
 
     [Theory]
     [InlineData(ServiceLifetime.Singleton)]
     [InlineData(ServiceLifetime.Scoped)]
     [InlineData(ServiceLifetime.Transient)]
-    public void WithHandlerLifetime_WithAllLifetimes_SetsCorrectLifetime(ServiceLifetime lifetime)
+    public void AddDecorator_WithAllLifetimes_AddsDecoratorWithCorrectLifetime(ServiceLifetime lifetime)
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
 
         // Act
-        var result = builder.WithHandlerLifetime(lifetime);
+        var result = builder.AddDecorator<TestCommandHandlerDecorator>(lifetime);
 
         // Assert
         var options = result.Build();
-        Assert.Equal(lifetime, options.HandlerLifetime);
+        var decorator = options.Decorators.First();
+        Assert.Equal(lifetime, decorator.Lifetime);
     }
 
     [Fact]
-    public void WithHandlerLifetime_CalledMultipleTimes_OverridesLifetime()
+    public void AddDecorator_WithMultipleTypes_AddsAllDecoratorsIncludingQueryDecorators()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
 
         // Act
-        builder.WithHandlerLifetime(ServiceLifetime.Singleton);
-        builder.WithHandlerLifetime(ServiceLifetime.Transient);
+        builder.AddDecorator<TestCommandHandlerDecorator>()
+               .AddDecorator<TestQueryHandlerDecorator>(ServiceLifetime.Singleton)
+               .AddDecorator<ParameterlessQueryHandlerDecorator>(ServiceLifetime.Transient)
+               .AddDecorator(typeof(GenericCommandHandlerDecorator<>), ServiceLifetime.Scoped);
 
         // Assert
         var options = builder.Build();
-        Assert.Equal(ServiceLifetime.Transient, options.HandlerLifetime);
+        Assert.Equal(4, options.Decorators.Count);
+
+        var decoratorTypes = options.Decorators.Select(d => d.Type).ToList();
+        Assert.Contains(typeof(TestCommandHandlerDecorator), decoratorTypes);
+        Assert.Contains(typeof(TestQueryHandlerDecorator), decoratorTypes);
+        Assert.Contains(typeof(ParameterlessQueryHandlerDecorator), decoratorTypes);
+        Assert.Contains(typeof(GenericCommandHandlerDecorator<>), decoratorTypes);
+
+        Assert.Contains(options.Decorators, d => d.Type == typeof(TestCommandHandlerDecorator) && d.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(options.Decorators, d => d.Type == typeof(TestQueryHandlerDecorator) && d.Lifetime == ServiceLifetime.Singleton);
+        Assert.Contains(options.Decorators, d => d.Type == typeof(ParameterlessQueryHandlerDecorator) && d.Lifetime == ServiceLifetime.Transient);
     }
 
     [Fact]
-    public void Build_ReturnsConfiguredOptions()
-    {
-        // Arrange
-        var builder = new CQRSOptionsBuilder();
-        var assembly = typeof(TestCommandHandler).Assembly;
-
-        // Act
-        builder.AddHandler<TestCommandHandler>()
-               .AddHandler<TestCommandWithResultHandler>()
-               .AddHandlersFromAssemblyContaining(assembly)
-               .WithHandlerLifetime(ServiceLifetime.Singleton);
-
-        var options = builder.Build();
-
-        // Assert
-        Assert.NotNull(options);
-        Assert.Equal(2, options.HandlerTypes.Count);
-        Assert.Equal(assembly, options.AssemblyWithHandlers);
-        Assert.Equal(ServiceLifetime.Singleton, options.HandlerLifetime);
-    }
-
-    [Fact]
-    public void Build_WithNoConfiguration_ReturnsDefaultOptions()
+    public void AddDecorator_WithGenericDecoratorTypes_AddsOpenAndClosedGenerics()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
 
         // Act
-        var options = builder.Build();
+        builder.AddDecorator<GenericCommandHandlerDecorator<TestCommand>>(ServiceLifetime.Scoped)
+               .AddDecorator(typeof(GenericTestQueryHandlerDecorator<>), ServiceLifetime.Singleton)
+               .AddDecorator(typeof(GenericCommandWithResultHandlerDecorator<,>), ServiceLifetime.Transient);
 
         // Assert
-        Assert.NotNull(options);
-        Assert.Empty(options.HandlerTypes);
-        Assert.Null(options.AssemblyWithHandlers);
-        Assert.Equal(ServiceLifetime.Scoped, options.HandlerLifetime);
+        var options = builder.Build();
+        Assert.Equal(3, options.Decorators.Count);
+
+        var decoratorTypes = options.Decorators.Select(d => d.Type).ToList();
+        Assert.Contains(typeof(GenericCommandHandlerDecorator<TestCommand>), decoratorTypes);
+        Assert.Contains(typeof(GenericTestQueryHandlerDecorator<>), decoratorTypes);
+        Assert.Contains(typeof(GenericCommandWithResultHandlerDecorator<,>), decoratorTypes);
     }
 
+    [Fact]
+    public void AddDecorator_WithDuplicateTypes_AddsBothInstancesWithDifferentLifetimes()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+
+        // Act
+        builder.AddDecorator<TestCommandHandlerDecorator>(ServiceLifetime.Scoped)
+               .AddDecorator<TestCommandHandlerDecorator>(ServiceLifetime.Singleton);
+
+        // Assert
+        var options = builder.Build();
+        Assert.Equal(2, options.Decorators.Count);
+        Assert.All(options.Decorators, decorator => Assert.Equal(typeof(TestCommandHandlerDecorator), decorator.Type));
+
+        var lifetimes = options.Decorators.Select(d => d.Lifetime).ToList();
+        Assert.Contains(ServiceLifetime.Scoped, lifetimes);
+        Assert.Contains(ServiceLifetime.Singleton, lifetimes);
+    }
+
+    // AddDecorator Validation Tests
+    [Fact]
+    public void AddDecorator_WithAbstractClass_ThrowsArgumentException()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.AddDecorator(typeof(AbstractTestDecorator), ServiceLifetime.Scoped));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Contains("Decorator type must be a concrete class", exception.Message);
+    }
+
+    [Fact]
+    public void AddDecorator_WithInterface_ThrowsArgumentException()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.AddDecorator(typeof(ITestCommandHandlerDecorator), ServiceLifetime.Scoped));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Contains("Decorator type must be a concrete class", exception.Message);
+    }
+
+    [Fact]
+    public void AddDecorator_WithNonDecoratorType_ThrowsArgumentException()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.AddDecorator(typeof(TestCommandHandler), ServiceLifetime.Scoped));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Contains("Decorator type must implement ICQRSHandlerDecorator", exception.Message);
+    }
+
+    [Fact]
+    public void AddDecorator_WithGenericInterface_ThrowsArgumentException()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.AddDecorator(typeof(ICommandHandlerDecorator<TestCommand>), ServiceLifetime.Scoped));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Contains("Decorator type must be a concrete class", exception.Message);
+    }
+
+    // AddAdditionalRegistration Tests
+    [Fact]
+    public void AddAdditionalRegistration_WithAction_AddsToAdditionalRegistrations()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+        var called = false;
+        Action<IServiceCollection> registrationAction = services => { called = true; };
+
+        // Act
+        var result = builder.AddAdditionalRegistration(registrationAction);
+
+        // Assert
+        var options = result.Build();
+        Assert.Same(builder, result);
+        Assert.Single(options.AdditionalRegistrations);
+
+        // Verify the action works
+        var testServices = new ServiceCollection();
+        options.AdditionalRegistrations.First()(testServices);
+        Assert.True(called);
+    }
+
+    [Fact]
+    public void AddAdditionalRegistration_WithMultipleActions_AddsAllActions()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+        var callCount = 0;
+
+        // Act
+        builder.AddAdditionalRegistration(services => { callCount++; })
+               .AddAdditionalRegistration(services => { callCount++; })
+               .AddAdditionalRegistration(services => { callCount++; });
+
+        // Assert
+        var options = builder.Build();
+        Assert.Equal(3, options.AdditionalRegistrations.Count);
+
+        // Verify all actions work
+        var testServices = new ServiceCollection();
+        foreach (var action in options.AdditionalRegistrations)
+        {
+            action(testServices);
+        }
+        Assert.Equal(3, callCount);
+    }
+
+    [Fact]
+    public void AddAdditionalRegistration_WithServiceRegistration_RegistersServicesToCollection()
+    {
+        // Arrange
+        var builder = new CQRSOptionsBuilder();
+        var testInstance = new TestCommandHandler(null!);
+
+        // Act
+        builder.AddAdditionalRegistration(services =>
+        {
+            services.AddSingleton<string>("test-value");
+            services.AddScoped<TestCommandHandler>(_ => testInstance);
+        });
+
+        // Assert
+        var options = builder.Build();
+        var testServices = new ServiceCollection();
+        options.AdditionalRegistrations.First()(testServices);
+
+        Assert.Equal(2, testServices.Count);
+        Assert.Contains(testServices, d => d.ServiceType == typeof(string));
+        Assert.Contains(testServices, d => d.ServiceType == typeof(TestCommandHandler));
+    }
+
+    // Builder Integration Tests
     [Fact]
     public void Build_CalledMultipleTimes_ReturnsSameOptionsInstance()
     {
@@ -411,7 +494,7 @@ public class CQRSOptionsBuilderTests
     }
 
     [Fact]
-    public void Builder_SupportsFluentChaining()
+    public void Builder_SupportsFluentChainingWithHandlersDecoratorsAndAssembly()
     {
         // Arrange
         var builder = new CQRSOptionsBuilder();
@@ -419,48 +502,30 @@ public class CQRSOptionsBuilderTests
 
         // Act
         var options = builder
-            .AddHandler<TestCommandHandler>()
-            .AddHandler<TestCommandWithResultHandler>()
-            .AddHandlersFromAssemblyContaining<AnotherTestCommandHandler>()
-            .WithHandlerLifetime(ServiceLifetime.Transient)
+            .AddHandler<TestCommandHandler>(ServiceLifetime.Singleton)
+            .AddDecorator<TestCommandHandlerDecorator>(ServiceLifetime.Scoped)
+            .AddHandler<TestCommandWithResultHandler>(ServiceLifetime.Transient)
+            .AddDecorator<TestQueryHandlerDecorator>(ServiceLifetime.Singleton)
+            .AddDecorator<ParameterlessQueryHandlerDecorator>(ServiceLifetime.Transient)
+            .AddHandlersFromAssemblyContaining<AnotherTestCommandHandler>(ServiceLifetime.Scoped)
             .Build();
 
         // Assert
         Assert.NotNull(options);
-        Assert.Equal(2, options.HandlerTypes.Count);
+        Assert.Equal(2, options.Handlers.Count);
+        Assert.Equal(3, options.Decorators.Count);
         Assert.Equal(assembly, options.AssemblyWithHandlers);
-        Assert.Equal(ServiceLifetime.Transient, options.HandlerLifetime);
-    }
+        Assert.Equal(ServiceLifetime.Scoped, options.HandlerFromAssemblyLifetime);
 
-    [Fact]
-    public void AddHandler_WithDuplicateTypes_AddsBothInstances()
-    {
-        // Arrange
-        var builder = new CQRSOptionsBuilder();
+        // Verify handler types
+        var handlerTypes = options.Handlers.Select(h => h.Type).ToList();
+        Assert.Contains(typeof(TestCommandHandler), handlerTypes);
+        Assert.Contains(typeof(TestCommandWithResultHandler), handlerTypes);
 
-        // Act
-        builder.AddHandler<TestCommandHandler>()
-               .AddHandler<TestCommandHandler>();
-
-        // Assert
-        var options = builder.Build();
-        Assert.Equal(2, options.HandlerTypes.Count);
-        Assert.All(options.HandlerTypes, type => Assert.Equal(typeof(TestCommandHandler), type));
-    }
-
-    [Fact]
-    public void HandlerTypes_IsModifiableCollection()
-    {
-        // Arrange
-        var builder = new CQRSOptionsBuilder();
-
-        // Act
-        builder.AddHandler<TestCommandHandler>();
-        var options = builder.Build();
-
-        // Assert - verify it's a collection that can be modified
-        Assert.NotNull(options.HandlerTypes);
-        options.HandlerTypes.Add(typeof(AnotherTestCommandHandler));
-        Assert.Equal(2, options.HandlerTypes.Count);
+        // Verify decorator types including query decorators
+        var decoratorTypes = options.Decorators.Select(d => d.Type).ToList();
+        Assert.Contains(typeof(TestCommandHandlerDecorator), decoratorTypes);
+        Assert.Contains(typeof(TestQueryHandlerDecorator), decoratorTypes);
+        Assert.Contains(typeof(ParameterlessQueryHandlerDecorator), decoratorTypes);
     }
 }

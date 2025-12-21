@@ -1,49 +1,8 @@
+using System.Collections.Concurrent;
+using CodeWinden.CQRS.Proxies;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeWinden.CQRS;
-
-/// <summary>
-/// Central service for executing commands and queries in a CQRS architecture.
-/// </summary>
-public interface ICQRSService
-{
-    /// <summary>
-    /// Executes a query without parameters and returns the result.
-    /// </summary>
-    /// <typeparam name="TResult">Type of result expected from the query.</typeparam>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Result of the query.</returns>
-    Task<TResult> ExecuteQuery<TResult>(CancellationToken cancellationToken = default);
-    /// <summary>
-    /// Executes a query with parameters and returns the result.
-    /// </summary>
-    /// <typeparam name="TQuery">Type of query to execute.</typeparam>
-    /// <typeparam name="TResult">Type of result expected from the query.</typeparam>
-    /// <param name="query">The query to execute.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Result of the query.</returns>
-    Task<TResult> ExecuteQuery<TQuery, TResult>(TQuery query, CancellationToken cancellationToken = default)
-        where TQuery : IQuery<TResult>;
-    /// <summary>
-    /// Executes a command without return value.
-    /// </summary>
-    /// <typeparam name="TCommand">Type of command to execute.</typeparam>
-    /// <param name="command">The command to execute.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    Task ExecuteCommand<TCommand>(TCommand command, CancellationToken cancellationToken = default)
-        where TCommand : ICommand;
-    /// <summary>
-    /// Executes a command with return value.
-    /// </summary>
-    /// <typeparam name="TCommand">Type of command to execute.</typeparam>
-    /// <typeparam name="TResult">Type of result expected from the command.</typeparam>
-    /// <param name="command">The command to execute.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Result of the command.</returns>
-    Task<TResult> ExecuteCommand<TCommand, TResult>(TCommand command, CancellationToken cancellationToken = default)
-        where TCommand : ICommand<TResult>;
-}
 
 /// <summary>
 /// Implementation of the CQRS service that resolves and executes command and query handlers.
@@ -54,6 +13,7 @@ public class CQRSService : ICQRSService
     /// Service provider for resolving handlers.
     /// </summary>
     private readonly IServiceProvider _serviceProvider;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="CQRSService"/> class.
     /// </summary>
@@ -74,7 +34,7 @@ public class CQRSService : ICQRSService
         where TCommand : ICommand
     {
         // Resolve the appropriate command handler
-        var handler = _serviceProvider.GetRequiredService<ICommandHandler<TCommand>>();
+        var handler = _serviceProvider.GetRequiredService<CommandHandlerProxy<ICommandHandler<TCommand>, TCommand>>();
 
         // Execute the command using the handler
         return handler.Handle(command, cancellationToken);
@@ -92,7 +52,7 @@ public class CQRSService : ICQRSService
         where TCommand : ICommand<TResult>
     {
         // Resolve the appropriate command handler
-        var handler = _serviceProvider.GetRequiredService<ICommandHandler<TCommand, TResult>>();
+        var handler = _serviceProvider.GetRequiredService<CommandHandlerProxy<ICommandHandler<TCommand, TResult>, TCommand, TResult>>();
 
         // Execute the command using the handler
         return handler.Handle(command, cancellationToken);
@@ -107,7 +67,7 @@ public class CQRSService : ICQRSService
     public Task<TResult> ExecuteQuery<TResult>(CancellationToken cancellationToken = default)
     {
         // Resolve the appropriate query handler
-        var handler = _serviceProvider.GetRequiredService<IQueryHandler<TResult>>();
+        var handler = _serviceProvider.GetRequiredService<QueryHandlerProxy<IQueryHandler<TResult>, TResult>>();
 
         // Execute the query using the handler
         return handler.Handle(cancellationToken);
@@ -125,7 +85,7 @@ public class CQRSService : ICQRSService
         where TQuery : IQuery<TResult>
     {
         // Resolve the appropriate query handler
-        var handler = _serviceProvider.GetRequiredService<IQueryHandler<TQuery, TResult>>();
+        var handler = _serviceProvider.GetRequiredService<QueryHandlerProxy<IQueryHandler<TQuery, TResult>, TQuery, TResult>>();
 
         // Execute the query using the handler
         return handler.Handle(query, cancellationToken);

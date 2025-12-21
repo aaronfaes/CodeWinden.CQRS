@@ -115,6 +115,13 @@ public async Task Test1()
 - **Assertions:** Use xUnit's `Assert` class with specific assertion methods
   - `Assert.Equal()`, `Assert.NotNull()`, `Assert.Throws<T>()`, `Assert.True/False()`
   - Avoid generic assertions like `Assert.True(result != null)` - use `Assert.NotNull(result)`
+- **Async tests:** Always use `async Task` return type for async tests, include cancellation token scenarios
+### Common Pitfalls to Avoid
+- **Over-mocking:** Avoid mocking concrete classes or excessive behavior
+- **Tight coupling:** Do not test private methods or internal implementation details
+- **Long tests:** Keep tests focused on a single behavior; avoid multiple assertions testing different scenarios
+- **Test case redundancy:** Avoid duplicate test cases that do not add coverage
+- **Test Failures:** Don't update tests to match broken code; Indicate failures clearly for investigation
 
 ### Test Data Organization
 ```csharp

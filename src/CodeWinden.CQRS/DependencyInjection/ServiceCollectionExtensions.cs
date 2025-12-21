@@ -1,7 +1,8 @@
-﻿namespace CodeWinden.CQRS;
-
+﻿using CodeWinden.CQRS.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace CodeWinden.CQRS;
 
 /// <summary>
 /// Extension methods for registering CQRS services to an IServiceCollection.
@@ -36,14 +37,8 @@ public static class ServiceCollectionExtensions
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddCQRS(this IServiceCollection services, CQRSOptions options)
     {
-        // Locate all handlers
-        var handlers = HandlerLocator.LocateHandlers(options);
-
         // Register all handlers to the service collection
-        foreach (var handler in handlers)
-        {
-            services.TryAdd(handler);
-        }
+        DependencyInjectionRegistrar.RegisterHandlers(services, options);
 
         // Register the CQRS service
         services.TryAddSingleton<ICQRSService, CQRSService>();

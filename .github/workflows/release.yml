@@ -1,4 +1,6 @@
-# Inspired on https://github.com/acraven/blog-nuget-workflow-github-actions | https://acraven.medium.com/a-nuget-package-workflow-using-github-actions-7da8c6557863
+name: Codewinden.CQRS - Release
+
+# Inspired by https://github.com/acraven/blog-nuget-workflow-github-actions | https://acraven.medium.com/a-nuget-package-workflow-using-github-actions-7da8c6557863
 on:
   push:
     tags:

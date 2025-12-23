@@ -144,7 +144,7 @@ public class CQRSServiceTests
         var command = new TestCommandWithResult { Value = 10 };
 
         // Act
-        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command);
+        var result = await cqrsService.ExecuteCommand(command);
 
         // Assert
         Assert.Equal(420, result); // 10 * 42
@@ -163,7 +163,7 @@ public class CQRSServiceTests
         using (var cts = new CancellationTokenSource())
         {
             // Act
-            var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command, cts.Token);
+            var result = await cqrsService.ExecuteCommand(command, cts.Token);
 
             // Assert
             Assert.Equal(210, result); // 5 * 42
@@ -181,7 +181,7 @@ public class CQRSServiceTests
         var command = new TestCommandWithResult { Value = 3 };
 
         // Act
-        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command);
+        var result = await cqrsService.ExecuteCommand(command);
 
         // Assert
         Assert.Equal(126, result); // 3 * 42
@@ -251,7 +251,7 @@ public class CQRSServiceTests
         var query = new TestQuery { Id = 42 };
 
         // Act
-        var result = await cqrsService.ExecuteQuery<TestQuery, string>(query);
+        var result = await cqrsService.ExecuteQuery(query);
 
         // Assert
         Assert.Equal("Result for Id: 42", result);
@@ -270,7 +270,7 @@ public class CQRSServiceTests
         using (var cts = new CancellationTokenSource())
         {
             // Act
-            var result = await cqrsService.ExecuteQuery<TestQuery, string>(query, cts.Token);
+            var result = await cqrsService.ExecuteQuery(query, cts.Token);
 
             // Assert
             Assert.Equal("Result for Id: 99", result);
@@ -292,8 +292,8 @@ public class CQRSServiceTests
         var query2 = new AnotherTestQuery { Value = 50 };
 
         // Act
-        var result1 = await cqrsService.ExecuteQuery<TestQuery, string>(query1);
-        var result2 = await cqrsService.ExecuteQuery<AnotherTestQuery, int>(query2);
+        var result1 = await cqrsService.ExecuteQuery(query1);
+        var result2 = await cqrsService.ExecuteQuery(query2);
 
         // Assert
         Assert.Equal("Result for Id: 100", result1);
@@ -311,7 +311,7 @@ public class CQRSServiceTests
         var query = new TestQuery { Id = 777 };
 
         // Act
-        var result = await cqrsService.ExecuteQuery<TestQuery, string>(query);
+        var result = await cqrsService.ExecuteQuery(query);
 
         // Assert
         Assert.Equal("Result for Id: 777", result);
@@ -379,7 +379,7 @@ public class CQRSServiceTests
         var command = new TestCommandWithResult { Value = 7 };
 
         // Act
-        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command);
+        var result = await cqrsService.ExecuteCommand(command);
 
         // Assert
         Assert.Equal(294, result); // 7 * 42
@@ -420,7 +420,7 @@ public class CQRSServiceTests
         var command = new TestCommandWithResult { Value = 5 };
 
         // Act
-        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command);
+        var result = await cqrsService.ExecuteCommand(command);
 
         // Assert
         Assert.Equal(210, result); // 5 * 42
@@ -441,7 +441,7 @@ public class CQRSServiceTests
         var query = new TestQuery { Id = 42 };
 
         // Act
-        var result = await cqrsService.ExecuteQuery<TestQuery, string>(query);
+        var result = await cqrsService.ExecuteQuery(query);
 
         // Assert - decorator adds 1 to the Id before passing to handler
         Assert.Equal("Result for Id: 43", result);
@@ -542,7 +542,7 @@ public class CQRSServiceTests
 
         // Act
         await cqrsService.ExecuteCommand(command1);
-        var result = await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command2);
+        var result = await cqrsService.ExecuteCommand(command2);
 
         // Assert - both commands executed successfully through the same decorator
         Assert.Equal(420, result); // 10 * 42
@@ -650,7 +650,7 @@ public class CQRSServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await cqrsService.ExecuteCommand<TestCommandWithResult, int>(command));
+            await cqrsService.ExecuteCommand(command));
     }
 
     [Fact]
@@ -663,7 +663,7 @@ public class CQRSServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await cqrsService.ExecuteQuery<TestQuery, string>(query));
+            await cqrsService.ExecuteQuery(query));
     }
 
     [Fact]

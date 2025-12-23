@@ -128,7 +128,7 @@ public class CQRSServiceTests
         var command = new ValidatedCommandWithResult { Email = "test@example.com" };
 
         // Act
-        var result = await context.Service.ExecuteCommand<ValidatedCommandWithResult, string>(command);
+        var result = await context.Service.ExecuteCommand(command);
 
         // Assert
         Assert.Equal("Processed: test@example.com", result);
@@ -144,7 +144,7 @@ public class CQRSServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ValidationException>(
-            async () => await context.Service.ExecuteCommand<ValidatedCommandWithResult, string>(command));
+            async () => await context.Service.ExecuteCommand(command));
 
         Assert.Single(exception.Errors);
         Assert.Equal("Email must be a valid email address", exception.Errors.First().ErrorMessage);
@@ -162,7 +162,7 @@ public class CQRSServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ValidationException>(
-            async () => await context.Service.ExecuteCommand<ValidatedCommandWithResult, string>(command));
+            async () => await context.Service.ExecuteCommand(command));
 
         Assert.Contains(exception.Errors, e => e.ErrorMessage == "Email is required");
 
@@ -178,7 +178,7 @@ public class CQRSServiceTests
         var query = new ValidatedQuery { MinValue = 10, MaxValue = 20 };
 
         // Act
-        var result = await context.Service.ExecuteQuery<ValidatedQuery, int>(query);
+        var result = await context.Service.ExecuteQuery(query);
 
         // Assert
         Assert.Equal(10, result);
@@ -194,7 +194,7 @@ public class CQRSServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ValidationException>(
-            async () => await context.Service.ExecuteQuery<ValidatedQuery, int>(query));
+            async () => await context.Service.ExecuteQuery(query));
 
         Assert.Single(exception.Errors);
         Assert.Equal("MinValue must be less than or equal to MaxValue", exception.Errors.First().ErrorMessage);
@@ -211,7 +211,7 @@ public class CQRSServiceTests
         var query = new ValidatedQuery { MinValue = 20, MaxValue = 20 };
 
         // Act
-        var result = await context.Service.ExecuteQuery<ValidatedQuery, int>(query);
+        var result = await context.Service.ExecuteQuery(query);
 
         // Assert
         Assert.Equal(0, result);
@@ -320,7 +320,7 @@ public class CQRSServiceTests
 
             // Act & Assert
             await Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await context.Service.ExecuteQuery<ValidatedQuery, int>(query, cts.Token));
+                async () => await context.Service.ExecuteQuery(query, cts.Token));
 
             // Handler should not be called due to cancellation during validation
             Assert.False(context.Tracker.WasCalled(nameof(ValidatedQueryHandler)));

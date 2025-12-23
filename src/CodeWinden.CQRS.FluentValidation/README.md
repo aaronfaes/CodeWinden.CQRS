@@ -158,7 +158,7 @@ public async Task<IActionResult> CreateUser([FromBody] CreateUserCommand command
 {
     try
     {
-        var userId = await _cqrs.ExecuteCommand<CreateUserCommand, int>(command);
+        var userId = await _cqrs.ExecuteCommand(command);
         return Ok(new { UserId = userId });
     }
     catch (ValidationException ex)

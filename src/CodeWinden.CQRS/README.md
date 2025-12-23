@@ -146,7 +146,7 @@ public class UpdateUserCommandHandler : ICommandHandler<UpdateUserCommand, bool>
 }
 
 // Execute the command
-var success = await cqrs.ExecuteCommand<UpdateUserCommand, bool>(
+var success = await cqrs.ExecuteCommand(
     new UpdateUserCommand { Id = 123, Name = "Jane Doe" }
 );
 ```
@@ -188,7 +188,7 @@ public class GetUserQueryHandler : IQueryHandler<GetUserQuery, UserDto>
 }
 
 // Execute the query
-var user = await cqrs.ExecuteQuery<GetUserQuery, UserDto>(
+var user = await cqrs.ExecuteQuery(
     new GetUserQuery { UserId = 123 }
 );
 ```

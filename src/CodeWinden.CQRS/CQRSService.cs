@@ -23,6 +23,11 @@ public class CQRSService : ICQRSService
         typeof(CQRSService).GetMethod(nameof(ExecuteQueryGeneric), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
     /// <summary>
+    /// Cache for MethodInfo instances to improve performance.
+    /// </summary>
+    private readonly ConcurrentDictionary<Type, MethodInfo> _methodCache = new();
+
+    /// <summary>
     /// Service provider for resolving handlers.
     /// </summary>
     private readonly IServiceProvider _serviceProvider;
@@ -65,13 +70,16 @@ public class CQRSService : ICQRSService
         // Validate the command
         ArgumentNullException.ThrowIfNull(command);
 
-        // Create the generic method for executing the command
-        var executeMethod = _executeCommandGenericMethod.MakeGenericMethod(command.GetType(), typeof(TResult));
+        // Get or create the generic method for executing the command
+        var executeMethod = _methodCache.GetOrAdd(command.GetType(), static commandType =>
+        {
+            return _executeCommandGenericMethod!.MakeGenericMethod(commandType, typeof(TResult));
+        });
 
         try
         {
             // Invoke the method and return the result
-            return (Task<TResult>)executeMethod.Invoke(this, new object[] { command, cancellationToken })!;
+            return (Task<TResult>)executeMethod.Invoke(this, [command, cancellationToken])!; // As we are in control, we are sure that it will not be null
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {
@@ -110,13 +118,16 @@ public class CQRSService : ICQRSService
         // Validate the query
         ArgumentNullException.ThrowIfNull(query);
 
-        // Create the generic method for executing the query
-        var executeMethod = _executeQueryGenericMethod.MakeGenericMethod(query.GetType(), typeof(TResult));
+        // Get or create the generic method for executing the command
+        var executeMethod = _methodCache.GetOrAdd(query.GetType(), static queryType =>
+        {
+            return _executeQueryGenericMethod!.MakeGenericMethod(queryType, typeof(TResult));
+        });
 
         try
         {
             // Invoke the method and return the result
-            return (Task<TResult>)executeMethod.Invoke(this, [query, cancellationToken])!;
+            return (Task<TResult>)executeMethod.Invoke(this, [query, cancellationToken])!; // As we are in control, we are sure that it will not be null
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {

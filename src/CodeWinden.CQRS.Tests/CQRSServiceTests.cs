@@ -144,7 +144,7 @@ public class CQRSServiceTests
         var command = new TestCommandWithResult { Value = 10 };
 
         // Act
-        var result = await cqrsService.ExecuteCommand(command, CancellationToken.None);
+        var result = await cqrsService.ExecuteCommand(command);
 
         // Assert
         Assert.Equal(420, result); // 10 * 42

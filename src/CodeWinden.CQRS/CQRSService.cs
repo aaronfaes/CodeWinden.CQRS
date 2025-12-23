@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using CodeWinden.CQRS.Proxies;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,6 +11,17 @@ namespace CodeWinden.CQRS;
 /// </summary>
 public class CQRSService : ICQRSService
 {
+    /// <summary>
+    /// MethodInfo for executing a command with return value.
+    /// </summary>
+    private static readonly MethodInfo _executeCommandGenericMethod =
+        typeof(CQRSService).GetMethod(nameof(ExecuteCommandGeneric), BindingFlags.NonPublic | BindingFlags.Instance)!;
+    /// <summary>
+    /// MethodInfo for executing a query with parameters and returning the result.
+    /// </summary>
+    private static readonly MethodInfo _executeQueryGenericMethod =
+        typeof(CQRSService).GetMethod(nameof(ExecuteQueryGeneric), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
     /// <summary>
     /// Service provider for resolving handlers.
     /// </summary>
@@ -43,19 +56,31 @@ public class CQRSService : ICQRSService
     /// <summary>
     /// Executes a command with return value.
     /// </summary>
-    /// <typeparam name="TCommand">Type of command to execute.</typeparam>
     /// <typeparam name="TResult">Type of result expected from the command.</typeparam>
     /// <param name="command">The command to execute.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result of the command.</returns>
-    public Task<TResult> ExecuteCommand<TCommand, TResult>(TCommand command, CancellationToken cancellationToken = default)
-        where TCommand : ICommand<TResult>
+    public Task<TResult> ExecuteCommand<TResult>(ICommand<TResult> command, CancellationToken cancellationToken = default)
     {
-        // Resolve the appropriate command handler
-        var handler = _serviceProvider.GetRequiredService<CommandHandlerProxy<ICommandHandler<TCommand, TResult>, TCommand, TResult>>();
+        // Validate the command
+        ArgumentNullException.ThrowIfNull(command);
 
-        // Execute the command using the handler
-        return handler.Handle(command, cancellationToken);
+        // Create the generic method for executing the command
+        var executeMethod = _executeCommandGenericMethod.MakeGenericMethod(command.GetType(), typeof(TResult));
+
+        try
+        {
+            // Invoke the method and return the result
+            return (Task<TResult>)executeMethod.Invoke(this, new object[] { command, cancellationToken })!;
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            // Unwrap the inner exception and rethrow it
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+
+            // This line will never be reached, but is required to satisfy the compiler
+            throw;
+        }
     }
 
     /// <summary>
@@ -76,12 +101,60 @@ public class CQRSService : ICQRSService
     /// <summary>
     /// Executes a query with parameters and returns the result.
     /// </summary>
+    /// <typeparam name="TResult">Type of result expected from the query.</typeparam>
+    /// <param name="query">The query to execute.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result of the query.</returns>
+    public Task<TResult> ExecuteQuery<TResult>(IQuery<TResult> query, CancellationToken cancellationToken = default)
+    {
+        // Validate the query
+        ArgumentNullException.ThrowIfNull(query);
+
+        // Create the generic method for executing the query
+        var executeMethod = _executeQueryGenericMethod.MakeGenericMethod(query.GetType(), typeof(TResult));
+
+        try
+        {
+            // Invoke the method and return the result
+            return (Task<TResult>)executeMethod.Invoke(this, [query, cancellationToken])!;
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            // Unwrap the inner exception and rethrow it
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+
+            // This line will never be reached, but is required to satisfy the compiler
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Executes a command with return value.
+    /// </summary>
+    /// <typeparam name="TCommand">Type of command to execute.</typeparam>
+    /// <typeparam name="TResult">Type of result expected from the command.</typeparam>
+    /// <param name="command">The command to execute.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result of the command.</returns>
+    private Task<TResult> ExecuteCommandGeneric<TCommand, TResult>(TCommand command, CancellationToken cancellationToken = default)
+        where TCommand : ICommand<TResult>
+    {
+        // Resolve the appropriate command handler
+        var handler = _serviceProvider.GetRequiredService<CommandHandlerProxy<ICommandHandler<TCommand, TResult>, TCommand, TResult>>();
+
+        // Execute the command using the handler
+        return handler.Handle(command, cancellationToken);
+    }
+
+    /// <summary>
+    /// Executes a query with parameters and returns the result.
+    /// </summary>
     /// <typeparam name="TQuery">Type of query to execute.</typeparam>
     /// <typeparam name="TResult">Type of result expected from the query.</typeparam>
     /// <param name="query">The query to execute.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result of the query.</returns>
-    public Task<TResult> ExecuteQuery<TQuery, TResult>(TQuery query, CancellationToken cancellationToken = default)
+    private Task<TResult> ExecuteQueryGeneric<TQuery, TResult>(TQuery query, CancellationToken cancellationToken = default)
         where TQuery : IQuery<TResult>
     {
         // Resolve the appropriate query handler

@@ -15,13 +15,11 @@ public interface ICQRSService
     /// <summary>
     /// Executes a query with parameters and returns the result.
     /// </summary>
-    /// <typeparam name="TQuery">Type of query to execute.</typeparam>
     /// <typeparam name="TResult">Type of result expected from the query.</typeparam>
     /// <param name="query">The query to execute.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result of the query.</returns>
-    Task<TResult> ExecuteQuery<TQuery, TResult>(TQuery query, CancellationToken cancellationToken = default)
-        where TQuery : IQuery<TResult>;
+    Task<TResult> ExecuteQuery<TResult>(IQuery<TResult> query, CancellationToken cancellationToken = default);
     /// <summary>
     /// Executes a command without return value.
     /// </summary>
@@ -34,11 +32,9 @@ public interface ICQRSService
     /// <summary>
     /// Executes a command with return value.
     /// </summary>
-    /// <typeparam name="TCommand">Type of command to execute.</typeparam>
     /// <typeparam name="TResult">Type of result expected from the command.</typeparam>
     /// <param name="command">The command to execute.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result of the command.</returns>
-    Task<TResult> ExecuteCommand<TCommand, TResult>(TCommand command, CancellationToken cancellationToken = default)
-        where TCommand : ICommand<TResult>;
+    Task<TResult> ExecuteCommand<TResult>(ICommand<TResult> command, CancellationToken cancellationToken = default);
 }

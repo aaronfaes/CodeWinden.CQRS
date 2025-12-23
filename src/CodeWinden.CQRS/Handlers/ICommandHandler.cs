@@ -9,7 +9,7 @@ public interface ICommand { }
 /// Marker interface for commands to strongly type the expected result.
 /// </summary>
 /// <typeparam name="TResult">Type of result expected when executing a command.</typeparam>
-public interface ICommand<TResult> : ICommand { }
+public interface ICommand<TResult> { }
 
 /// <summary>
 /// Handler for commands without return value.

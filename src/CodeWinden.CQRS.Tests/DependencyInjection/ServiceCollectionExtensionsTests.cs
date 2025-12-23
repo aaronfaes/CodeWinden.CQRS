@@ -25,7 +25,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ICQRSService));
         Assert.NotNull(descriptor);
         Assert.Equal(typeof(CQRSService), descriptor.ImplementationType);
-        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
         Assert.Same(services, result);
     }
 
@@ -42,7 +42,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ICQRSService));
         Assert.NotNull(descriptor);
         Assert.Equal(typeof(CQRSService), descriptor.ImplementationType);
-        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
         Assert.Same(services, result);
     }
 
@@ -60,7 +60,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ICQRSService));
         Assert.NotNull(descriptor);
         Assert.Equal(typeof(CQRSService), descriptor.ImplementationType);
-        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]

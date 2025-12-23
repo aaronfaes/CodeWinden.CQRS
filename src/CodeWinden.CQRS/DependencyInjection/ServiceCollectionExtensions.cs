@@ -41,7 +41,7 @@ public static class ServiceCollectionExtensions
         DependencyInjectionRegistrar.RegisterHandlers(services, options);
 
         // Register the CQRS service
-        services.TryAddSingleton<ICQRSService, CQRSService>();
+        services.TryAddScoped<ICQRSService, CQRSService>();
 
         return services;
     }

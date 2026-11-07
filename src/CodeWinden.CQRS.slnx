@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Libraries/">
+    <Project Path="CodeWinden.CQRS.FluentValidation/CodeWinden.CQRS.FluentValidation.csproj" />
+    <Project Path="CodeWinden.CQRS/CodeWinden.CQRS.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="CodeWinden.CQRS.Tests/CodeWinden.CQRS.Tests.csproj" />
+  </Folder>
+</Solution>

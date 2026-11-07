@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Enable NuGet package auditing -->
+    <NugetAudit>true</NugetAudit>
+    <NugetAuditMode>all</NugetAuditMode>
+    <NugetAuditLevel>low</NugetAuditLevel>
+    <!-- Fails the build when a vulnerability is detected or when a warning is given -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
